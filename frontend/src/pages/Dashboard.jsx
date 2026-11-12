@@ -4,16 +4,24 @@ import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
-function StatCard({ label, value, hint, to }) {
+function StatCard({ label, value, hint, to, badgeColor = "bg-slate-100 text-slate-700" }) {
   const content = (
-    <div className="rounded-3xl bg-white p-6 shadow-sm transition hover:shadow-md">
-      <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">{label}</div>
-      <div className="mt-2 text-3xl font-extrabold text-nemilink-navy">{value}</div>
-      {hint && <div className="mt-1 text-xs text-gray-500">{hint}</div>}
+    <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs transition hover:border-slate-300 hover:shadow-xs">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          {label}
+        </span>
+        {hint && (
+          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${badgeColor}`}>
+            {hint}
+          </span>
+        )}
+      </div>
+      <div className="mt-2 text-2xl font-bold text-slate-900">{value}</div>
     </div>
   );
   return to ? (
-    <Link to={to} className="block no-underline">
+    <Link to={to} className="no-underline">
       {content}
     </Link>
   ) : (
@@ -56,7 +64,7 @@ export default function Dashboard() {
           setStats((prev) => ({ ...prev, teamCount: team.length }));
         }
       } catch {
-        /* non-blocking summary */
+        /* ignore */
       }
     }
     load();
@@ -67,57 +75,60 @@ export default function Dashboard() {
 
   return (
     <AppShell
-      title={`Welcome, ${displayName}`}
+      title={`Hello, ${displayName.split(" ")[0]}`}
       subtitle={
         emp
-          ? `${emp.designation || "Workspace Member"} · ${emp.department?.name || "No department"} · ${emp.employee_code}`
-          : "Your Nemilink workspace overview."
+          ? `${emp.designation || "Member"} · ${emp.department?.name || "General"} · ${emp.employee_code}`
+          : "Workspace overview"
       }
       actions={
-        user?.role === "hr" ? (
+        <div className="flex items-center gap-2">
           <Link
-            to="/employees"
-            className="rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white no-underline transition hover:opacity-95"
+            to="/timesheets"
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white no-underline transition hover:bg-slate-800"
           >
-            Manage Employees
+            + Log Timesheet
           </Link>
-        ) : (
           <Link
-            to="/profile"
-            className="rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white no-underline transition hover:opacity-95"
+            to="/leaves"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
           >
-            View My Profile
+            Apply Leave
           </Link>
-        )
+        </div>
       }
     >
-      {/* Role-specific summary cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stat Grid */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {user?.role === "hr" && (
           <>
             <StatCard
-              label="Total Employees"
+              label="Employees"
               value={stats.totalEmployees ?? "—"}
-              hint="Click to open directory"
+              hint="Directory"
               to="/employees"
+              badgeColor="bg-blue-50 text-blue-700"
             />
             <StatCard
-              label="Active Accounts"
+              label="Active"
               value={stats.activeEmployees ?? "—"}
-              hint="Enabled for sign-in"
+              hint="Enabled"
               to="/employees"
+              badgeColor="bg-emerald-50 text-emerald-700"
             />
             <StatCard
               label="Departments"
               value={stats.departments ?? "—"}
-              hint="Manage departments"
+              hint="Manage"
               to="/departments"
+              badgeColor="bg-purple-50 text-purple-700"
             />
             <StatCard
-              label="Direct Reportees"
+              label="My Team"
               value={stats.teamCount ?? "—"}
-              hint="View my team"
+              hint="Direct"
               to="/team"
+              badgeColor="bg-amber-50 text-amber-700"
             />
           </>
         )}
@@ -127,25 +138,24 @@ export default function Dashboard() {
             <StatCard
               label="Direct Reportees"
               value={stats.teamCount ?? "—"}
-              hint="View your team members"
+              hint="Team"
               to="/team"
+              badgeColor="bg-blue-50 text-blue-700"
             />
             <StatCard
               label="Employee Code"
               value={emp?.employee_code || "—"}
-              hint={emp?.department?.name || "Department"}
+              hint="My Code"
               to="/profile"
             />
             <StatCard
-              label="Joining Date"
-              value={emp?.joining_date || "—"}
-              hint="Profile details"
+              label="Department"
+              value={emp?.department?.name || "—"}
               to="/profile"
             />
             <StatCard
-              label="Probation Ends"
+              label="Probation End"
               value={emp?.probation_end_date || "—"}
-              hint="Review schedule"
               to="/profile"
             />
           </>
@@ -156,113 +166,146 @@ export default function Dashboard() {
             <StatCard
               label="Employee Code"
               value={emp?.employee_code || "—"}
-              hint={emp?.designation || "Designation"}
+              hint={emp?.department?.name || "General"}
+              to="/profile"
+              badgeColor="bg-blue-50 text-blue-700"
+            />
+            <StatCard
+              label="Reporting Manager"
+              value={emp?.manager ? emp.manager.name : "None"}
               to="/profile"
             />
             <StatCard
-              label="Department"
-              value={emp?.department?.name || "—"}
-              hint={emp?.manager ? `Manager: ${emp.manager.name}` : "No manager assigned"}
-              to="/profile"
-            />
-            <StatCard
-              label="Joining Date"
+              label="Joined"
               value={emp?.joining_date || "—"}
-              hint="Workspace start date"
               to="/profile"
             />
             <StatCard
-              label="Probation Ends"
+              label="Probation End"
               value={emp?.probation_end_date || "—"}
-              hint="Update contact info"
               to="/profile"
             />
           </>
         )}
       </div>
 
-      {/* Quick Actions & Upcoming Modules */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <span className="section-label">QUICK ACTIONS</span>
-          <h2 className="mt-2 text-lg font-bold text-nemilink-navy">Workspace essentials</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      {/* Main Grid */}
+      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        {/* Quick Links Card */}
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <span className="text-xs font-bold text-slate-900">Workspace Essentials</span>
+            <span className="text-[11px] text-slate-400">Quick access</span>
+          </div>
+
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+            <Link
+              to="/timesheets"
+              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle cx="12" cy="12" r="9" strokeWidth="1.75" />
+                  <path strokeWidth="1.75" d="M12 7v5l3 2" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-slate-900">Daily Timesheet</div>
+                <div className="mt-0.5 text-[11px] text-slate-500 truncate">
+                  Log your daily work, login/logout, and project blockers.
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              to="/leaves"
+              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <rect x="3" y="5" width="18" height="16" rx="2" strokeWidth="1.75" />
+                  <path strokeWidth="1.75" d="M16 3v4M8 3v4M3 10h18" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-slate-900">Leave Management</div>
+                <div className="mt-0.5 text-[11px] text-slate-500 truncate">
+                  Check available balances and apply for time off.
+                </div>
+              </div>
+            </Link>
+
             <Link
               to="/profile"
-              className="rounded-2xl border border-[#eceaf9] bg-[#faf9ff] p-4 no-underline transition hover:border-nemilink-navy"
+              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
             >
-              <div className="font-bold text-nemilink-navy">My Profile</div>
-              <div className="mt-1 text-xs text-gray-500">
-                View your details & update phone / emergency contact.
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle cx="12" cy="8" r="4" strokeWidth="1.75" />
+                  <path strokeWidth="1.75" d="M4 20c1.8-3.5 5-5 8-5s6.2 1.5 8 5" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-slate-900">My Profile</div>
+                <div className="mt-0.5 text-[11px] text-slate-500 truncate">
+                  Update phone number and emergency contacts.
+                </div>
               </div>
             </Link>
-            <Link
-              to="/change-password"
-              className="rounded-2xl border border-[#eceaf9] bg-[#faf9ff] p-4 no-underline transition hover:border-nemilink-navy"
-            >
-              <div className="font-bold text-nemilink-navy">Security</div>
-              <div className="mt-1 text-xs text-gray-500">
-                Change your workspace password anytime.
-              </div>
-            </Link>
+
             {(user?.role === "manager" || user?.role === "hr") && (
               <Link
                 to="/team"
-                className="rounded-2xl border border-[#eceaf9] bg-[#faf9ff] p-4 no-underline transition hover:border-nemilink-navy"
+                className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
               >
-                <div className="font-bold text-nemilink-navy">My Team</div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Check your direct reportees and contact details.
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <circle cx="9" cy="8" r="3.5" strokeWidth="1.75" />
+                    <path strokeWidth="1.75" d="M2.5 19.5c1.3-3 3.8-4.5 6.5-4.5s5.2 1.5 6.5 4.5" />
+                  </svg>
                 </div>
-              </Link>
-            )}
-            {user?.role === "hr" && (
-              <Link
-                to="/employees"
-                className="rounded-2xl border border-[#eceaf9] bg-[#faf9ff] p-4 no-underline transition hover:border-nemilink-navy"
-              >
-                <div className="font-bold text-nemilink-navy">Employees & Departments</div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Onboard new employees, update roles, and manage teams.
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-bold text-slate-900">Team Management</div>
+                  <div className="mt-0.5 text-[11px] text-slate-500 truncate">
+                    Review team members and direct reportees.
+                  </div>
                 </div>
               </Link>
             )}
           </div>
-        </section>
+        </div>
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <span className="section-label">NEXT MODULES</span>
-          <h2 className="mt-2 text-lg font-bold text-nemilink-navy">Coming up in Nemilink</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Attendance tracking and leave management will appear here once their backend endpoints are added.
-          </p>
-          <div className="mt-4 space-y-3">
-            <Link
-              to="/timesheets"
-              className="flex items-center justify-between rounded-2xl border border-[#eceaf9] bg-[#faf9ff] px-4 py-3 no-underline transition hover:border-nemilink-navy"
-            >
-              <div>
-                <div className="text-sm font-bold text-nemilink-navy">Attendance &amp; Timesheets</div>
-                <div className="text-xs text-gray-500">Daily check-in/out and work logs</div>
+        {/* Company Summary / Profile Sidebar */}
+        <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+          <div>
+            <div className="text-xs font-bold text-slate-900">Account Summary</div>
+            <div className="mt-3 space-y-2 text-xs">
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-slate-400">Email</span>
+                <span className="font-semibold text-slate-700 truncate max-w-[170px]">{user?.email}</span>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
-                Active
-              </span>
-            </Link>
-            <Link
-              to="/leaves"
-              className="flex items-center justify-between rounded-2xl border border-[#eceaf9] bg-[#faf9ff] px-4 py-3 no-underline transition hover:border-nemilink-navy"
-            >
-              <div>
-                <div className="text-sm font-bold text-nemilink-navy">Leave Management</div>
-                <div className="text-xs text-gray-500">Leave balances, requests & approvals</div>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-slate-400">Role</span>
+                <span className="font-semibold text-slate-700 capitalize">{user?.role}</span>
               </div>
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
-                Active
-              </span>
-            </Link>
+              <div className="flex justify-between border-b border-slate-100 pb-1.5">
+                <span className="text-slate-400">Status</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Active
+                </span>
+              </div>
+              <div className="flex justify-between pb-1">
+                <span className="text-slate-400">Sign-in</span>
+                <span className="font-semibold text-slate-700">Microsoft SSO</span>
+              </div>
+            </div>
           </div>
-        </section>
+
+          <div className="mt-4 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500 leading-relaxed">
+            Need profile updates or department transfers? Contact your HR Admin.
+          </div>
+        </div>
       </div>
     </AppShell>
   );

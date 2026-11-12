@@ -4,10 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
 const STATUS_STYLES = {
-  pending: "bg-amber-50 text-amber-700",
-  approved: "bg-emerald-50 text-emerald-700",
-  rejected: "bg-rose-50 text-rose-700",
-  cancelled: "bg-gray-100 text-gray-500",
+  pending: "bg-amber-50 text-amber-700 border border-amber-200/60",
+  approved: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
+  rejected: "bg-rose-50 text-rose-700 border border-rose-200/60",
+  cancelled: "bg-slate-100 text-slate-500 border border-slate-200/60",
 };
 
 const TYPE_LABELS = {
@@ -29,7 +29,7 @@ export default function Leaves() {
   const { user } = useAuth();
   const canApprove = user?.role === "manager" || user?.role === "hr";
 
-  const [tab, setTab] = useState("my"); // "my" | "approvals"
+  const [tab, setTab] = useState("my");
   const [balances, setBalances] = useState([]);
   const [myLeaves, setMyLeaves] = useState([]);
   const [approvals, setApprovals] = useState([]);
@@ -37,7 +37,6 @@ export default function Leaves() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Apply modal state
   const today = new Date().toISOString().slice(0, 10);
   const [showApply, setShowApply] = useState(false);
   const [form, setForm] = useState({
@@ -49,8 +48,7 @@ export default function Leaves() {
   const [submitting, setSubmitting] = useState(false);
   const [applyError, setApplyError] = useState("");
 
-  // Review modal state
-  const [reviewing, setReviewing] = useState(null); // { req, action: "approve" | "reject" }
+  const [reviewing, setReviewing] = useState(null);
   const [reviewComment, setReviewComment] = useState("");
 
   const dayPreview = useMemo(
@@ -72,7 +70,7 @@ export default function Leaves() {
       if (canApprove && appData) setApprovals(appData);
       setError("");
     } catch (err) {
-      setError(err.message || "Failed to load leave data.");
+      setError(err.message || "Failed to load leave records.");
     } finally {
       setLoading(false);
     }
@@ -107,11 +105,12 @@ export default function Leaves() {
   }
 
   async function handleCancel(id) {
+    if (!window.confirm("Cancel this leave request?")) return;
     try {
       await api(`/leaves/${id}/cancel`, { method: "POST" });
       await loadData();
     } catch (err) {
-      setError(err.message || "Could not cancel leave request.");
+      setError(err.message || "Could not cancel request.");
     }
   }
 
@@ -128,7 +127,7 @@ export default function Leaves() {
       setReviewComment("");
       await loadData();
     } catch (err) {
-      setError(err.message || "Could not update leave request.");
+      setError(err.message || "Could not update request.");
     } finally {
       setSubmitting(false);
     }
@@ -137,7 +136,7 @@ export default function Leaves() {
   return (
     <AppShell
       title="Leaves"
-      subtitle="Check your leave balances, apply for time off, and track approvals."
+      subtitle="Leave balances, applications, and team approvals"
       actions={
         <button
           type="button"
@@ -145,29 +144,30 @@ export default function Leaves() {
             setApplyError("");
             setShowApply(true);
           }}
-          className="rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-95"
+          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
         >
           + Apply Leave
         </button>
       }
     >
-      {/* Leave Balance Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Leave Balance Compact Cards */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {balances.map((b) => (
-          <div key={b.leave_type} className="rounded-3xl bg-white p-5 shadow-sm">
-            <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+          <div key={b.leave_type} className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
               {b.label}
-            </div>
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-nemilink-navy">
+            </span>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="text-xl font-bold text-slate-900">
                 {b.available === null ? "∞" : b.available}
               </span>
               {b.allocated !== null && (
-                <span className="text-xs font-semibold text-gray-400">/ {b.allocated} days</span>
+                <span className="text-[11px] font-medium text-slate-400">/ {b.allocated} d</span>
               )}
             </div>
-            <div className="mt-2 flex gap-3 text-xs text-gray-500">
+            <div className="mt-1.5 flex gap-2 text-[10px] text-slate-400">
               <span>Used: {b.used}</span>
+              <span>·</span>
               <span>Pending: {b.pending}</span>
             </div>
           </div>
@@ -175,36 +175,36 @@ export default function Leaves() {
       </div>
 
       {error && (
-        <div className="mt-5 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
           {error}
         </div>
       )}
 
       {/* Tabs */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-2xl bg-white p-1 shadow-xs">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
           <button
             type="button"
             onClick={() => setTab("my")}
-            className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
               tab === "my"
-                ? "bg-nemilink-lavender text-nemilink-navy"
-                : "text-gray-500 hover:text-nemilink-navy"
+                ? "bg-slate-900 text-white"
+                : "text-slate-500 hover:text-slate-900"
             }`}
           >
-            My Requests ({myLeaves.length})
+            My Leaves ({myLeaves.length})
           </button>
           {canApprove && (
             <button
               type="button"
               onClick={() => setTab("approvals")}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "approvals"
-                  ? "bg-nemilink-lavender text-nemilink-navy"
-                  : "text-gray-500 hover:text-nemilink-navy"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
-              Team Approvals ({approvals.length})
+              Approvals ({approvals.length})
             </button>
           )}
         </div>
@@ -213,7 +213,7 @@ export default function Leaves() {
           <select
             value={approvalFilter}
             onChange={(e) => setApprovalFilter(e.target.value)}
-            className="rounded-xl border border-[#dcd9f8] bg-white px-3.5 py-2 text-sm font-semibold text-nemilink-navy outline-none"
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none"
           >
             <option value="pending">Pending only</option>
             <option value="">All requests</option>
@@ -223,69 +223,67 @@ export default function Leaves() {
         )}
       </div>
 
-      {/* Table Section */}
-      <div className="mt-4 overflow-hidden rounded-3xl bg-white shadow-sm">
+      {/* Table / List Card */}
+      <div className="mt-3 rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-sm text-gray-500">Loading leave requests...</div>
+          <div className="p-8 text-center text-xs text-slate-400">Loading leave records...</div>
         ) : tab === "my" ? (
           myLeaves.length === 0 ? (
-            <div className="p-10 text-center">
-              <p className="text-base font-bold text-nemilink-navy">No leave requests yet</p>
-              <p className="mt-1 text-sm text-gray-500">
-                Click &quot;+ Apply Leave&quot; when you need time off.
-              </p>
+            <div className="p-8 text-center">
+              <p className="text-sm font-bold text-slate-800">No leave requests yet</p>
+              <p className="mt-1 text-xs text-slate-400">Click &quot;+ Apply Leave&quot; when you need time off.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-gray-100 bg-[#faf9ff] text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
                   <tr>
-                    <th className="px-5 py-3.5">Type</th>
-                    <th className="px-5 py-3.5">Dates</th>
-                    <th className="px-5 py-3.5">Days</th>
-                    <th className="px-5 py-3.5">Reason</th>
-                    <th className="px-5 py-3.5">Status</th>
-                    <th className="px-5 py-3.5 text-right">Action</th>
+                    <th className="px-3.5 py-2.5">Type</th>
+                    <th className="px-3.5 py-2.5">Dates</th>
+                    <th className="px-3.5 py-2.5">Days</th>
+                    <th className="px-3.5 py-2.5">Reason</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    <th className="px-3.5 py-2.5 text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {myLeaves.map((req) => (
-                    <tr key={req.id} className="hover:bg-[#fcfbff]">
-                      <td className="px-5 py-3.5 font-bold text-nemilink-navy">
+                    <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
                         {TYPE_LABELS[req.leave_type] || req.leave_type}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-600">
+                      <td className="px-3.5 py-2.5 text-slate-600">
                         {req.start_date} → {req.end_date}
                       </td>
-                      <td className="px-5 py-3.5 font-semibold text-nemilink-navy">{req.days}</td>
-                      <td className="max-w-xs px-5 py-3.5 text-gray-600">
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
+                      <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">
                         <div>{req.reason}</div>
                         {req.review_comment && (
-                          <div className="mt-0.5 text-xs text-gray-400">
+                          <div className="mt-0.5 text-[10px] text-slate-400">
                             Note: {req.review_comment}
                           </div>
                         )}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3.5 py-2.5">
                         <span
-                          className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${
-                            STATUS_STYLES[req.status] || "bg-gray-100 text-gray-600"
+                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                            STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
                           }`}
                         >
                           {req.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="px-3.5 py-2.5 text-right">
                         {req.status === "pending" ? (
                           <button
                             type="button"
                             onClick={() => handleCancel(req.id)}
-                            className="rounded-xl border border-gray-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:border-rose-300 hover:bg-rose-50"
+                            className="rounded px-2 py-0.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                           >
                             Cancel
                           </button>
                         ) : (
-                          <span className="text-xs text-gray-400">—</span>
+                          <span className="text-slate-300">—</span>
                         )}
                       </td>
                     </tr>
@@ -295,63 +293,57 @@ export default function Leaves() {
             </div>
           )
         ) : approvals.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-base font-bold text-nemilink-navy">No matching requests</p>
-            <p className="mt-1 text-sm text-gray-500">
-              There are no team leave requests for this filter.
-            </p>
+          <div className="p-8 text-center text-xs text-slate-400">
+            No team leave requests for this filter.
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-100 bg-[#faf9ff] text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
                 <tr>
-                  <th className="px-5 py-3.5">Employee</th>
-                  <th className="px-5 py-3.5">Type</th>
-                  <th className="px-5 py-3.5">Dates</th>
-                  <th className="px-5 py-3.5">Days</th>
-                  <th className="px-5 py-3.5">Reason</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Review</th>
+                  <th className="px-3.5 py-2.5">Employee</th>
+                  <th className="px-3.5 py-2.5">Type</th>
+                  <th className="px-3.5 py-2.5">Dates</th>
+                  <th className="px-3.5 py-2.5">Days</th>
+                  <th className="px-3.5 py-2.5">Reason</th>
+                  <th className="px-3.5 py-2.5">Status</th>
+                  <th className="px-3.5 py-2.5 text-right">Review</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {approvals.map((req) => (
-                  <tr key={req.id} className="hover:bg-[#fcfbff]">
-                    <td className="px-5 py-3.5">
-                      <div className="font-bold text-nemilink-navy">{req.employee_name}</div>
-                      <div className="text-xs text-gray-500">
-                        {req.employee_code}
-                        {req.department_name ? ` · ${req.department_name}` : ""}
-                      </div>
+                  <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-3.5 py-2.5">
+                      <div className="font-semibold text-slate-800">{req.employee_name}</div>
+                      <div className="text-[10px] text-slate-400">{req.employee_code}</div>
                     </td>
-                    <td className="px-5 py-3.5 font-semibold text-nemilink-navy">
+                    <td className="px-3.5 py-2.5 font-semibold text-slate-800">
                       {TYPE_LABELS[req.leave_type] || req.leave_type}
                     </td>
-                    <td className="px-5 py-3.5 text-gray-600">
+                    <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
                       {req.start_date} → {req.end_date}
                     </td>
-                    <td className="px-5 py-3.5 font-semibold text-nemilink-navy">{req.days}</td>
-                    <td className="max-w-xs px-5 py-3.5 text-gray-600">{req.reason}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
+                    <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">{req.reason}</td>
+                    <td className="px-3.5 py-2.5">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ${
-                          STATUS_STYLES[req.status] || "bg-gray-100 text-gray-600"
+                        className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                          STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
                         }`}
                       >
                         {req.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                       {req.status === "pending" ? (
-                        <div className="inline-flex gap-2">
+                        <div className="inline-flex gap-1.5">
                           <button
                             type="button"
                             onClick={() => {
                               setReviewComment("");
                               setReviewing({ req, action: "approve" });
                             }}
-                            className="rounded-xl bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700"
+                            className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
                           >
                             Approve
                           </button>
@@ -361,14 +353,14 @@ export default function Leaves() {
                               setReviewComment("");
                               setReviewing({ req, action: "reject" });
                             }}
-                            className="rounded-xl border border-rose-200 px-3 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                            className="rounded border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                           >
                             Reject
                           </button>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400">
-                          {req.reviewed_by_email || "Reviewed"}
+                        <span className="text-[11px] text-slate-400">
+                          {req.reviewed_by_email || "Done"}
                         </span>
                       )}
                     </td>
@@ -380,34 +372,32 @@ export default function Leaves() {
         )}
       </div>
 
-      {/* Apply Leave Modal */}
+      {/* Apply Modal */}
       {showApply && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
-              <h2 className="text-xl font-extrabold text-nemilink-navy">Apply for Leave</h2>
+          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <h2 className="text-sm font-bold text-slate-900">Apply for Leave</h2>
               <button
                 type="button"
                 onClick={() => setShowApply(false)}
-                className="rounded-xl px-2.5 py-1 text-sm font-bold text-gray-400 hover:bg-gray-100"
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleApply} className="space-y-4">
+            <form onSubmit={handleApply} className="space-y-3 text-xs">
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                  Leave type
-                </label>
+                <label className="mb-1 block font-semibold text-slate-700">Leave Type</label>
                 <select
                   value={form.leave_type}
                   onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
                 >
                   <option value="casual">Casual Leave</option>
                   <option value="sick">Sick Leave</option>
@@ -416,40 +406,36 @@ export default function Leaves() {
                 </select>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                    Start date
-                  </label>
+                  <label className="mb-1 block font-semibold text-slate-700">Start Date</label>
                   <input
                     type="date"
                     required
                     value={form.start_date}
                     onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-nemilink-navy"
+                    className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                    End date
-                  </label>
+                  <label className="mb-1 block font-semibold text-slate-700">End Date</label>
                   <input
                     type="date"
                     required
                     min={form.start_date}
                     value={form.end_date}
                     onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                    className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-nemilink-navy"
+                    className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                   />
                 </div>
               </div>
 
-              <div className="rounded-xl bg-nemilink-lavender px-3.5 py-2 text-xs font-bold text-nemilink-navy">
+              <div className="rounded-md bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
                 Duration: {dayPreview} day{dayPreview === 1 ? "" : "s"}
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Reason</label>
+                <label className="mb-1 block font-semibold text-slate-700">Reason</label>
                 <textarea
                   required
                   minLength={3}
@@ -457,31 +443,31 @@ export default function Leaves() {
                   rows={3}
                   value={form.reason}
                   onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  placeholder="Brief reason for your leave..."
-                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-nemilink-navy"
+                  placeholder="Reason for taking time off..."
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               {applyError && (
-                <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+                <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
                   {applyError}
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setShowApply(false)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || dayPreview < 1}
-                  className="rounded-xl bg-nemilink-coral px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 >
-                  {submitting ? "Submitting..." : "Submit Request"}
+                  {submitting ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </form>
@@ -492,52 +478,48 @@ export default function Leaves() {
       {/* Review Modal */}
       {reviewing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-extrabold text-nemilink-navy capitalize">
+          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+            <h2 className="text-sm font-bold text-slate-900 capitalize">
               {reviewing.action} leave request
             </h2>
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="mt-1 text-xs text-slate-500">
               {reviewing.req.employee_name} · {TYPE_LABELS[reviewing.req.leave_type]} (
-              {reviewing.req.days} day{reviewing.req.days === 1 ? "" : "s"})
+              {reviewing.req.days} days)
             </p>
-            <form onSubmit={handleReviewSubmit} className="mt-4 space-y-4">
+            <form onSubmit={handleReviewSubmit} className="mt-3 space-y-3 text-xs">
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                  Comment (optional)
-                </label>
+                <label className="mb-1 block font-semibold text-slate-700">Note (optional)</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   maxLength={500}
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
-                  placeholder="Add an optional note..."
-                  className="w-full rounded-xl border border-gray-200 px-3.5 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  placeholder="Optional review note..."
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setReviewing(null)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className={`rounded-xl px-5 py-2 text-sm font-bold text-white disabled:opacity-50 ${
-                    reviewing.action === "approve" ? "bg-emerald-600" : "bg-nemilink-coral"
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
+                    reviewing.action === "approve"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-rose-600 hover:bg-rose-700"
                   }`}
                 >
-                  {submitting
-                    ? "Saving..."
-                    : reviewing.action === "approve"
-                    ? "Confirm Approve"
-                    : "Confirm Reject"}
+                  {submitting ? "Saving..." : `Confirm ${reviewing.action}`}
                 </button>
               </div>
             </form>
@@ -547,4 +529,3 @@ export default function Leaves() {
     </AppShell>
   );
 }
-

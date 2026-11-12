@@ -62,15 +62,17 @@ export default function Departments() {
   }
 
   return (
-    <AppShell title="Departments" subtitle="Organize teams and view headcount across departments.">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <span className="section-label">NEW DEPARTMENT</span>
-          <h2 className="mt-2 text-lg font-bold text-nemilink-navy">Add department</h2>
-          <form onSubmit={handleCreate} className="mt-4 space-y-4">
+    <AppShell
+      title="Departments"
+      subtitle="Organizational departments and member headcount"
+    >
+      <div className="grid gap-4 lg:grid-cols-3">
+        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+          <h2 className="text-xs font-bold text-slate-900">Add Department</h2>
+          <form onSubmit={handleCreate} className="mt-3 space-y-3 text-xs">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-nemilink-navy" htmlFor="dept-name">
-                Department name
+              <label className="mb-1 block font-semibold text-slate-700" htmlFor="dept-name">
+                Department Name
               </label>
               <input
                 id="dept-name"
@@ -82,17 +84,17 @@ export default function Departments() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Engineering"
                 disabled={saving}
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
 
             {message && (
-              <div className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
+              <div className="rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
                 {message}
               </div>
             )}
             {error && (
-              <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
                 {error}
               </div>
             )}
@@ -100,39 +102,34 @@ export default function Departments() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-95 disabled:opacity-50"
+              className="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
             >
-              {saving ? "Creating..." : "Create department"}
+              {saving ? "Creating..." : "Create"}
             </button>
           </form>
         </section>
 
-        <section className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="section-label">DIRECTORY</span>
-              <h2 className="mt-1 text-lg font-bold text-nemilink-navy">
-                All departments ({departments.length})
-              </h2>
-            </div>
-          </div>
+        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
+          <h2 className="text-xs font-bold text-slate-900">
+            Departments ({departments.length})
+          </h2>
 
           {loading ? (
-            <p className="mt-6 text-sm text-gray-500">Loading departments...</p>
+            <p className="mt-4 text-xs text-slate-400">Loading departments...</p>
           ) : departments.length === 0 ? (
-            <p className="mt-6 text-sm text-gray-500">No departments created yet.</p>
+            <p className="mt-4 text-xs text-slate-400">No departments created yet.</p>
           ) : (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {departments.map((dept) => (
                 <div
                   key={dept.id}
-                  className="flex items-center justify-between rounded-2xl border border-[#eceaf9] bg-[#faf9ff] px-4 py-3.5"
+                  className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/70 p-3"
                 >
                   <div>
-                    <div className="font-bold text-nemilink-navy">{dept.name}</div>
-                    <div className="text-xs text-gray-500">ID #{dept.id}</div>
+                    <div className="text-xs font-bold text-slate-900">{dept.name}</div>
+                    <div className="text-[10px] text-slate-400">ID #{dept.id}</div>
                   </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-nemilink-navy shadow-xs">
+                  <span className="rounded bg-white border border-slate-200/80 px-2 py-0.5 text-[10px] font-semibold text-slate-700">
                     {countsByDept[dept.id] || 0} members
                   </span>
                 </div>
@@ -144,4 +141,3 @@ export default function Departments() {
     </AppShell>
   );
 }
-

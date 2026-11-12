@@ -20,17 +20,17 @@ const EMPTY_CREATE = {
 function Modal({ title, onClose, children }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
       role="dialog"
       aria-modal="true"
     >
-      <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
-          <h2 className="text-xl font-extrabold text-nemilink-navy">{title}</h2>
+      <div className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+        <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <h2 className="text-sm font-bold text-slate-900">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl px-2.5 py-1 text-sm font-bold text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             ✕
           </button>
@@ -75,7 +75,7 @@ export default function Employees() {
       }
       setError("");
     } catch (err) {
-      setError(err.message || "Failed to load employees.");
+      setError(err.message || "Failed to load employee list.");
     } finally {
       setLoading(false);
     }
@@ -169,30 +169,30 @@ export default function Employees() {
   return (
     <AppShell
       title="Employees"
-      subtitle="Manage employee directory, roles, reporting managers, and account status."
+      subtitle="Employee directory, role assignment, and reporting lines"
       actions={
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-95"
+          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
         >
           + Add Employee
         </button>
       }
     >
-      {/* Filters */}
-      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-3xl bg-white p-4 shadow-sm">
+      {/* Filter bar */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, email, or employee code..."
-          className="min-w-[240px] flex-1 rounded-xl border border-gray-200 px-3.5 py-2 text-sm outline-none focus:border-nemilink-navy"
+          placeholder="Search by name, email, or code..."
+          className="min-w-[200px] flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 outline-none focus:border-slate-400"
         />
         <select
           value={departmentId}
           onChange={(e) => setDepartmentId(e.target.value)}
-          className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm outline-none focus:border-nemilink-navy"
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none"
         >
           <option value="">All departments</option>
           {departments.map((d) => (
@@ -204,72 +204,72 @@ export default function Employees() {
       </div>
 
       {error && (
-        <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
           {error}
         </div>
       )}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+      <div className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-sm text-gray-500">Loading employees...</div>
+          <div className="p-8 text-center text-xs text-slate-400">Loading directory...</div>
         ) : employees.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-base font-bold text-nemilink-navy">No employees found</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Try adjusting your filters or click "+ Add Employee" to create one.
+          <div className="p-8 text-center">
+            <p className="text-sm font-bold text-slate-800">No employees found</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Try adjusting your search or add a new employee profile.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-100 bg-[#faf9ff] text-[11px] font-bold tracking-wider text-gray-400 uppercase">
+            <table className="w-full text-left text-xs">
+              <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
                 <tr>
-                  <th className="px-5 py-3.5">Code</th>
-                  <th className="px-5 py-3.5">Employee</th>
-                  <th className="px-5 py-3.5">Department</th>
-                  <th className="px-5 py-3.5">Manager</th>
-                  <th className="px-5 py-3.5">Role</th>
-                  <th className="px-5 py-3.5">Status</th>
-                  <th className="px-5 py-3.5 text-right">Action</th>
+                  <th className="px-3.5 py-2.5">Code</th>
+                  <th className="px-3.5 py-2.5">Employee</th>
+                  <th className="px-3.5 py-2.5">Department</th>
+                  <th className="px-3.5 py-2.5">Manager</th>
+                  <th className="px-3.5 py-2.5">Role</th>
+                  <th className="px-3.5 py-2.5">Status</th>
+                  <th className="px-3.5 py-2.5 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-100">
                 {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-[#fcfbff]">
-                    <td className="px-5 py-3.5 font-bold text-nemilink-coral">
+                  <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
+                    <td className="px-3.5 py-2.5 font-bold text-slate-900 whitespace-nowrap">
                       {emp.employee_code}
                     </td>
-                    <td className="px-5 py-3.5">
-                      <div className="font-bold text-nemilink-navy">{emp.name}</div>
-                      <div className="text-xs text-gray-500">
+                    <td className="px-3.5 py-2.5">
+                      <div className="font-semibold text-slate-900">{emp.name}</div>
+                      <div className="text-[11px] text-slate-400">
                         {emp.designation ? `${emp.designation} · ` : ""}
                         {emp.email}
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-gray-600">{emp.department?.name || "—"}</td>
-                    <td className="px-5 py-3.5 text-gray-600">{emp.manager?.name || "—"}</td>
-                    <td className="px-5 py-3.5">
-                      <span className="rounded-full bg-nemilink-lavender px-2.5 py-0.5 text-xs font-bold text-nemilink-navy uppercase">
+                    <td className="px-3.5 py-2.5 text-slate-600">{emp.department?.name || "General"}</td>
+                    <td className="px-3.5 py-2.5 text-slate-600">{emp.manager?.name || "—"}</td>
+                    <td className="px-3.5 py-2.5 whitespace-nowrap">
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 uppercase">
                         {emp.role}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-3.5 py-2.5 whitespace-nowrap">
                       <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
                           emp.is_active
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-rose-50 text-rose-700"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                            : "bg-rose-50 text-rose-700 border border-rose-200/60"
                         }`}
                       >
                         {emp.is_active ? "Active" : "Disabled"}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-right">
+                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => openEdit(emp)}
-                        className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-nemilink-navy transition hover:border-nemilink-navy"
+                        className="rounded border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                       >
                         Edit
                       </button>
@@ -284,63 +284,46 @@ export default function Employees() {
 
       {/* Create Modal */}
       {showCreate && (
-        <Modal title="Add Employee" onClose={() => setShowCreate(false)}>
-          <form onSubmit={handleCreateSubmit} className="grid gap-4 sm:grid-cols-2">
+        <Modal title="Add Employee Profile" onClose={() => setShowCreate(false)}>
+          <form onSubmit={handleCreateSubmit} className="grid gap-2.5 sm:grid-cols-2 text-xs">
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Full name *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Full Name *</label>
               <input
                 type="text"
                 required
-                minLength={2}
                 value={createForm.name}
                 onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Employee code *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Employee Code *</label>
               <input
                 type="text"
                 required
-                minLength={2}
-                maxLength={20}
-                placeholder="EMP-004"
+                placeholder="EMP004"
                 value={createForm.employee_code}
                 onChange={(e) => setCreateForm({ ...createForm, employee_code: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Work email *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Work Email *</label>
               <input
                 type="email"
                 required
+                placeholder="user@nemilink.com"
                 value={createForm.email}
                 onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Temporary password *
-              </label>
-              <input
-                type="text"
-                required
-                minLength={8}
-                value={createForm.temporary_password}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, temporary_password: e.target.value })
-                }
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Role *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Role *</label>
               <select
                 value={createForm.role}
                 onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
@@ -348,11 +331,11 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Department</label>
+              <label className="mb-1 block font-semibold text-slate-700">Department</label>
               <select
                 value={createForm.department_id}
                 onChange={(e) => setCreateForm({ ...createForm, department_id: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="">None</option>
                 {departments.map((d) => (
@@ -363,22 +346,20 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Designation</label>
+              <label className="mb-1 block font-semibold text-slate-700">Designation</label>
               <input
                 type="text"
                 value={createForm.designation}
                 onChange={(e) => setCreateForm({ ...createForm, designation: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Reporting manager
-              </label>
+              <label className="mb-1 block font-semibold text-slate-700">Reporting Manager</label>
               <select
                 value={createForm.manager_id}
                 onChange={(e) => setCreateForm({ ...createForm, manager_id: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="">None</option>
                 {allManagers.map((m) => (
@@ -389,73 +370,36 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Joining date *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Joining Date *</label>
               <input
                 type="date"
                 required
                 value={createForm.joining_date}
                 onChange={(e) => setCreateForm({ ...createForm, joining_date: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Probation end date
-              </label>
-              <input
-                type="date"
-                value={createForm.probation_end_date}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, probation_end_date: e.target.value })
-                }
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Phone</label>
-              <input
-                type="text"
-                maxLength={20}
-                value={createForm.phone}
-                onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Emergency contact
-              </label>
-              <input
-                type="text"
-                maxLength={255}
-                value={createForm.emergency_contact}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, emergency_contact: e.target.value })
-                }
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
 
             {modalError && (
-              <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 sm:col-span-2">
+              <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 sm:col-span-2">
                 {modalError}
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2 sm:col-span-2">
+            <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-xl bg-nemilink-coral px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               >
-                {saving ? "Creating..." : "Create Employee"}
+                {saving ? "Creating..." : "Create"}
               </button>
             </div>
           </form>
@@ -465,24 +409,23 @@ export default function Employees() {
       {/* Edit Modal */}
       {editing && editForm && (
         <Modal title={`Edit ${editing.name} (${editing.employee_code})`} onClose={() => setEditing(null)}>
-          <form onSubmit={handleEditSubmit} className="grid gap-4 sm:grid-cols-2">
+          <form onSubmit={handleEditSubmit} className="grid gap-2.5 sm:grid-cols-2 text-xs">
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Full name *</label>
+              <label className="mb-1 block font-semibold text-slate-700">Full Name *</label>
               <input
                 type="text"
                 required
-                minLength={2}
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Role</label>
+              <label className="mb-1 block font-semibold text-slate-700">Role</label>
               <select
                 value={editForm.role}
                 onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="employee">Employee</option>
                 <option value="manager">Manager</option>
@@ -490,11 +433,11 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Department</label>
+              <label className="mb-1 block font-semibold text-slate-700">Department</label>
               <select
                 value={editForm.department_id}
                 onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="">None</option>
                 {departments.map((d) => (
@@ -505,22 +448,20 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Designation</label>
+              <label className="mb-1 block font-semibold text-slate-700">Designation</label>
               <input
                 type="text"
                 value={editForm.designation}
                 onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Reporting manager
-              </label>
+              <label className="mb-1 block font-semibold text-slate-700">Reporting Manager</label>
               <select
                 value={editForm.manager_id}
                 onChange={(e) => setEditForm({ ...editForm, manager_id: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
               >
                 <option value="">None</option>
                 {allManagers
@@ -533,68 +474,44 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Probation end date
-              </label>
-              <input
-                type="date"
-                value={editForm.probation_end_date}
-                onChange={(e) => setEditForm({ ...editForm, probation_end_date: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">Phone</label>
+              <label className="mb-1 block font-semibold text-slate-700">Phone</label>
               <input
                 type="text"
-                maxLength={20}
                 value={editForm.phone}
                 onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                Emergency contact
-              </label>
-              <input
-                type="text"
-                maxLength={255}
-                value={editForm.emergency_contact}
-                onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="inline-flex cursor-pointer items-center gap-2.5 text-sm font-semibold text-nemilink-navy">
+              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-700">
                 <input
                   type="checkbox"
                   checked={editForm.is_active}
                   onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
-                  className="h-4 w-4 accent-nemilink-coral"
+                  className="h-3.5 w-3.5 accent-slate-900 rounded"
                 />
-                Account is active (uncheck to disable sign-in)
+                Active account (uncheck to disable access)
               </label>
             </div>
 
             {modalError && (
-              <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 sm:col-span-2">
+              <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 sm:col-span-2">
                 {modalError}
               </div>
             )}
 
-            <div className="flex justify-end gap-3 pt-2 sm:col-span-2">
+            <div className="flex justify-end gap-2 pt-2 sm:col-span-2">
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-xl bg-nemilink-coral px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>
@@ -605,4 +522,3 @@ export default function Employees() {
     </AppShell>
   );
 }
-

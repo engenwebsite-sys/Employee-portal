@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
 
-function InfoRow({ label, value }) {
+function InfoCell({ label, value }) {
   return (
-    <div className="rounded-2xl border border-[#eceaf9] bg-[#faf9ff] px-4 py-3">
-      <div className="text-[11px] font-bold tracking-wider text-gray-400 uppercase">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-nemilink-navy">{value || "—"}</div>
+    <div className="rounded-lg border border-slate-100 bg-slate-50/70 p-3">
+      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+        {label}
+      </div>
+      <div className="mt-1 text-xs font-bold text-slate-800">{value || "—"}</div>
     </div>
   );
 }
@@ -42,7 +43,7 @@ export default function Profile() {
         },
       });
       await refreshUser();
-      setMessage("Contact details updated.");
+      setMessage("Contact details updated successfully.");
     } catch (err) {
       setError(err.message || "Could not update profile.");
     } finally {
@@ -53,70 +54,62 @@ export default function Profile() {
   return (
     <AppShell
       title="My Profile"
-      subtitle="View your workspace account details and keep your emergency contact up to date."
-      actions={
-        <Link
-          to="/change-password"
-          className="rounded-xl border border-[#dcd9f8] bg-white px-4 py-2 text-sm font-semibold text-nemilink-navy transition hover:border-nemilink-navy"
-        >
-          Change password
-        </Link>
-      }
+      subtitle="Workspace account details and contact preferences"
     >
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Account & Employment Details */}
-        <section className="rounded-3xl bg-white p-6 shadow-sm lg:col-span-2">
-          <span className="section-label">WORKSPACE PROFILE</span>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 pb-5">
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Workspace Account Details */}
+        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-xl font-bold text-nemilink-navy">
+              <h2 className="text-sm font-bold text-slate-900">
                 {emp?.name || user?.name || user?.email}
               </h2>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs text-slate-400">
                 {emp?.designation ? `${emp.designation} · ` : ""}
                 {user?.email}
               </p>
             </div>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-bold ${
-                user?.is_active ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                user?.is_active
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                  : "bg-rose-50 text-rose-700 border border-rose-200/60"
               }`}
             >
-              {user?.is_active ? "Active Account" : "Disabled"}
+              {user?.is_active ? "Active" : "Disabled"}
             </span>
           </div>
 
           {emp ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <InfoRow label="Employee Code" value={emp.employee_code} />
-              <InfoRow label="Role" value={user?.role?.toUpperCase()} />
-              <InfoRow label="Department" value={emp.department?.name} />
-              <InfoRow
+            <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              <InfoCell label="Employee Code" value={emp.employee_code} />
+              <InfoCell label="Role" value={user?.role?.toUpperCase()} />
+              <InfoCell label="Department" value={emp.department?.name || "General"} />
+              <InfoCell
                 label="Reporting Manager"
                 value={emp.manager ? `${emp.manager.name} (${emp.manager.employee_code})` : "None"}
               />
-              <InfoRow label="Joining Date" value={emp.joining_date} />
-              <InfoRow label="Probation End Date" value={emp.probation_end_date} />
+              <InfoCell label="Joining Date" value={emp.joining_date} />
+              <InfoCell label="Probation End" value={emp.probation_end_date} />
             </div>
           ) : (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              No employee profile record is linked to this login account yet. Contact HR if this is unexpected.
+            <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+              No employee profile record is linked to this account yet.
             </div>
           )}
         </section>
 
-        {/* Editable Contact Info */}
-        <section className="rounded-3xl bg-white p-6 shadow-sm">
-          <span className="section-label">CONTACT DETAILS</span>
-          <h3 className="mt-2 text-lg font-bold text-nemilink-navy">Update contact info</h3>
-          <p className="mt-1 text-xs text-gray-500">
-            You can update your phone number and emergency contact anytime.
+        {/* Contact info update */}
+        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+          <h3 className="text-xs font-bold text-slate-900">Contact Details</h3>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            Keep your phone and emergency contact current.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-3 space-y-3 text-xs">
             <div>
-              <label className="mb-1.5 block text-xs font-bold text-nemilink-navy" htmlFor="profile-phone">
-                Phone number
+              <label className="mb-1 block font-semibold text-slate-700" htmlFor="profile-phone">
+                Phone Number
               </label>
               <input
                 id="profile-phone"
@@ -126,16 +119,16 @@ export default function Profile() {
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98765 43210"
                 disabled={!emp || saving}
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-nemilink-navy disabled:bg-gray-50"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-slate-400 disabled:bg-slate-50"
               />
             </div>
 
             <div>
               <label
-                className="mb-1.5 block text-xs font-bold text-nemilink-navy"
+                className="mb-1 block font-semibold text-slate-700"
                 htmlFor="profile-emergency"
               >
-                Emergency contact
+                Emergency Contact
               </label>
               <input
                 id="profile-emergency"
@@ -143,19 +136,19 @@ export default function Profile() {
                 maxLength={255}
                 value={emergencyContact}
                 onChange={(e) => setEmergencyContact(e.target.value)}
-                placeholder="Name & phone number"
+                placeholder="Name & contact number"
                 disabled={!emp || saving}
-                className="w-full rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm outline-none transition focus:border-nemilink-navy disabled:bg-gray-50"
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs outline-none focus:border-slate-400 disabled:bg-slate-50"
               />
             </div>
 
             {message && (
-              <div className="rounded-xl bg-emerald-50 px-3.5 py-2.5 text-xs font-semibold text-emerald-700">
+              <div className="rounded-md bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700">
                 {message}
               </div>
             )}
             {error && (
-              <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-[11px] font-semibold text-rose-700">
                 {error}
               </div>
             )}
@@ -163,9 +156,9 @@ export default function Profile() {
             <button
               type="submit"
               disabled={!emp || saving}
-              className="w-full rounded-xl bg-nemilink-coral px-4 py-2.5 text-sm font-bold text-white transition hover:opacity-95 disabled:opacity-50"
+              className="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save contact details"}
+              {saving ? "Saving..." : "Save Contact Info"}
             </button>
           </form>
         </section>
@@ -173,4 +166,3 @@ export default function Profile() {
     </AppShell>
   );
 }
-

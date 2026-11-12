@@ -14,16 +14,16 @@ const PROJECT_SUGGESTIONS = [
 ];
 
 const STATUS_STYLE = {
-  Completed: "bg-emerald-50 text-emerald-700",
-  "In Progress": "bg-amber-50 text-amber-700",
-  Blocked: "bg-rose-50 text-rose-700",
-  "N/A": "bg-gray-100 text-gray-500",
+  Completed: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
+  "In Progress": "bg-amber-50 text-amber-700 border border-amber-200/60",
+  Blocked: "bg-rose-50 text-rose-700 border border-rose-200/60",
+  "N/A": "bg-slate-100 text-slate-500 border border-slate-200/60",
 };
 
 const DAY_TYPE_STYLE = {
-  "Working Day": "bg-nemilink-lavender text-nemilink-navy",
-  "Week Off": "bg-gray-100 text-gray-600",
-  Holiday: "bg-sky-50 text-sky-700",
+  "Working Day": "bg-slate-100 text-slate-700",
+  "Week Off": "bg-slate-50 text-slate-400",
+  Holiday: "bg-blue-50 text-blue-700",
   Leave: "bg-rose-50 text-rose-700",
   "Half Day": "bg-amber-50 text-amber-700",
 };
@@ -170,6 +170,7 @@ export default function Timesheets() {
   }
 
   async function handleDelete(id) {
+    if (!window.confirm("Delete this timesheet entry?")) return;
     try {
       await api(`/timesheets/${id}`, { method: "DELETE" });
       await loadData();
@@ -225,27 +226,27 @@ export default function Timesheets() {
   return (
     <AppShell
       title="Daily Timesheet"
-      subtitle="Log daily login/logout times, project tasks, status, and blockers."
+      subtitle="Log daily hours, project milestones, and blockers"
       actions={
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <input
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="rounded-xl border border-[#dcd9f8] bg-white px-3 py-2 text-sm font-semibold text-nemilink-navy outline-none focus:border-nemilink-navy"
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
           />
           <button
             type="button"
             onClick={handleExportCsv}
             disabled={activeRows.length === 0}
-            className="rounded-xl border border-[#dcd9f8] bg-white px-3.5 py-2 text-sm font-bold text-nemilink-navy transition hover:border-nemilink-navy disabled:opacity-50"
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Export CSV
           </button>
           <button
             type="button"
             onClick={openNew}
-            className="rounded-xl bg-nemilink-coral px-4 py-2 text-sm font-bold text-white transition hover:opacity-95"
+            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
           >
             + Log Daily Task
           </button>
@@ -253,15 +254,15 @@ export default function Timesheets() {
       }
     >
       {canViewTeam && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex rounded-2xl bg-white p-1 shadow-xs">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
             <button
               type="button"
               onClick={() => setTab("my")}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "my"
-                  ? "bg-nemilink-lavender text-nemilink-navy"
-                  : "text-gray-500 hover:text-nemilink-navy"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               My Timesheet ({myEntries.length})
@@ -269,10 +270,10 @@ export default function Timesheets() {
             <button
               type="button"
               onClick={() => setTab("team")}
-              className={`rounded-xl px-4 py-2 text-sm font-bold transition ${
+              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "team"
-                  ? "bg-nemilink-lavender text-nemilink-navy"
-                  : "text-gray-500 hover:text-nemilink-navy"
+                  ? "bg-slate-900 text-white"
+                  : "text-slate-500 hover:text-slate-900"
               }`}
             >
               Team Timesheets ({teamEntries.length})
@@ -283,7 +284,7 @@ export default function Timesheets() {
             <select
               value={teamFilterEmp}
               onChange={(e) => setTeamFilterEmp(e.target.value)}
-              className="rounded-xl border border-[#dcd9f8] bg-white px-3.5 py-2 text-sm font-semibold text-nemilink-navy outline-none"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 outline-none"
             >
               <option value="">All team members</option>
               {teamEmployees.map(([id, label]) => (
@@ -297,150 +298,204 @@ export default function Timesheets() {
       )}
 
       {error && (
-        <div className="mb-4 rounded-2xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700">
           {error}
         </div>
       )}
 
-      <div className="overflow-hidden rounded-3xl bg-white shadow-sm">
+      {/* Responsive Card/Table Wrapper */}
+      <div className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
         {loading ? (
-          <div className="p-10 text-center text-sm text-gray-500">Loading timesheet entries...</div>
+          <div className="p-8 text-center text-xs text-slate-400">Loading timesheet records...</div>
         ) : activeRows.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-base font-bold text-nemilink-navy">No entries for {month}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              Click &quot;+ Log Daily Task&quot; to record your daily work.
+          <div className="p-8 text-center">
+            <p className="text-sm font-bold text-slate-800">No entries for {month}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Click &quot;+ Log Daily Task&quot; to add your workday summary.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-100 bg-[#faf9ff] text-[11px] font-bold tracking-wider text-gray-400 uppercase">
-                <tr>
-                  {tab === "team" && <th className="px-4 py-3.5">Employee</th>}
-                  <th className="px-4 py-3.5 whitespace-nowrap">Date</th>
-                  <th className="px-4 py-3.5">Day</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap">Login</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap">Logout</th>
-                  <th className="px-4 py-3.5">Project</th>
-                  <th className="px-4 py-3.5 min-w-[260px]">Task Description</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 min-w-[200px]">Remarks / Blockers</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap">Day Type</th>
-                  {tab === "my" && <th className="px-4 py-3.5 text-right">Action</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 align-top">
-                {activeRows.map((row) => (
-                  <tr key={row.id} className="hover:bg-[#fcfbff]">
-                    {tab === "team" && (
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <div className="font-bold text-nemilink-navy">{row.employee_name}</div>
-                        <div className="text-xs text-gray-400">{row.employee_code}</div>
-                      </td>
-                    )}
-                    <td className="px-4 py-3.5 font-semibold whitespace-nowrap text-nemilink-navy">
-                      {row.work_date}
-                    </td>
-                    <td className="px-4 py-3.5 text-gray-500">{formatDayName(row.work_date)}</td>
-                    <td className="px-4 py-3.5 whitespace-nowrap text-gray-600">
-                      {formatTime12(row.login_time)}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap text-gray-600">
-                      {formatTime12(row.logout_time)}
-                    </td>
-                    <td className="px-4 py-3.5 font-semibold text-nemilink-navy">
-                      {row.project || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 text-xs leading-relaxed whitespace-pre-line text-gray-700">
-                      {row.task_description || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          STATUS_STYLE[row.status] || "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {row.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5 text-xs leading-relaxed whitespace-pre-line text-gray-600">
-                      {row.remarks || "—"}
-                    </td>
-                    <td className="px-4 py-3.5 whitespace-nowrap">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${
-                          DAY_TYPE_STYLE[row.day_type] || "bg-gray-100 text-gray-600"
-                        }`}
-                      >
-                        {row.day_type}
-                      </span>
-                    </td>
-                    {tab === "my" && (
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="inline-flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(row)}
-                            className="rounded-xl border border-gray-200 px-2.5 py-1 text-xs font-semibold text-nemilink-navy hover:border-nemilink-navy"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(row.id)}
-                            className="rounded-xl border border-gray-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:border-rose-300 hover:bg-rose-50"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    )}
+          <>
+            {/* Desktop / Tablet Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
+                  <tr>
+                    {tab === "team" && <th className="px-3.5 py-2.5">Employee</th>}
+                    <th className="px-3.5 py-2.5 whitespace-nowrap">Date</th>
+                    <th className="px-3.5 py-2.5">Day</th>
+                    <th className="px-3.5 py-2.5 whitespace-nowrap">Hours</th>
+                    <th className="px-3.5 py-2.5">Project</th>
+                    <th className="px-3.5 py-2.5 min-w-[240px]">Task Description</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    <th className="px-3.5 py-2.5 min-w-[180px]">Remarks</th>
+                    <th className="px-3.5 py-2.5 whitespace-nowrap">Type</th>
+                    {tab === "my" && <th className="px-3.5 py-2.5 text-right">Actions</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100 align-top">
+                  {activeRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
+                      {tab === "team" && (
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          <div className="font-semibold text-slate-800">{row.employee_name}</div>
+                          <div className="text-[10px] text-slate-400">{row.employee_code}</div>
+                        </td>
+                      )}
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
+                        {row.work_date}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-400">{formatDayName(row.work_date)}</td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 text-[11px]">
+                        {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
+                      </td>
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                        {row.project || "—"}
+                      </td>
+                      <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-600">
+                        {row.task_description || "—"}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <span
+                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                            STATUS_STYLE[row.status] || "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-500 text-[11px]">
+                        {row.remarks || "—"}
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <span
+                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${
+                            DAY_TYPE_STYLE[row.day_type] || "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {row.day_type}
+                        </span>
+                      </td>
+                      {tab === "my" && (
+                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                          <div className="inline-flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(row)}
+                              className="rounded px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(row.id)}
+                              className="rounded px-2 py-0.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                            >
+                              Del
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View (Clean on phones) */}
+            <div className="divide-y divide-slate-100 sm:hidden">
+              {activeRows.map((row) => (
+                <article key={row.id} className="p-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">
+                        {row.work_date} · {formatDayName(row.work_date)}
+                      </div>
+                      <div className="text-[11px] font-semibold text-slate-600">
+                        {row.project || "General"} · {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
+                      </div>
+                    </div>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        STATUS_STYLE[row.status] || "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                    {row.task_description || "No task details provided."}
+                  </p>
+
+                  {row.remarks && (
+                    <div className="rounded bg-slate-50 p-2 text-[11px] text-slate-500">
+                      Blockers: {row.remarks}
+                    </div>
+                  )}
+
+                  {tab === "my" && (
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(row)}
+                        className="rounded border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(row.id)}
+                        className="rounded border border-rose-200 px-2 py-1 text-[11px] font-semibold text-rose-600"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-3">
-              <h2 className="text-xl font-extrabold text-nemilink-navy">Log Daily Timesheet</h2>
+          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <h2 className="text-sm font-bold text-slate-900">Log Daily Timesheet</h2>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
-                className="rounded-xl px-2.5 py-1 text-sm font-bold text-gray-400 hover:bg-gray-100"
+                className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="grid gap-4 sm:grid-cols-2">
+            <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2 text-xs">
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Date *</label>
+                <label className="mb-1 block font-semibold text-slate-700">Date *</label>
                 <input
                   type="date"
                   required
                   value={form.work_date}
                   onChange={(e) => setForm({ ...form, work_date: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Day Type</label>
+                <label className="mb-1 block font-semibold text-slate-700">Day Type</label>
                 <select
                   value={form.day_type}
                   onChange={(e) => setForm({ ...form, day_type: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
                 >
                   {DAY_TYPE_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -451,34 +506,34 @@ export default function Timesheets() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Login Time</label>
+                <label className="mb-1 block font-semibold text-slate-700">Login Time</label>
                 <input
                   type="time"
                   value={form.login_time}
                   onChange={(e) => setForm({ ...form, login_time: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Logout Time</label>
+                <label className="mb-1 block font-semibold text-slate-700">Logout Time</label>
                 <input
                   type="time"
                   value={form.logout_time}
                   onChange={(e) => setForm({ ...form, logout_time: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Project</label>
+                <label className="mb-1 block font-semibold text-slate-700">Project</label>
                 <input
                   type="text"
                   list="project-suggestions"
                   placeholder="e.g. Maarga AI"
                   value={form.project}
                   onChange={(e) => setForm({ ...form, project: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
                 <datalist id="project-suggestions">
                   {PROJECT_SUGGESTIONS.map((p) => (
@@ -488,11 +543,11 @@ export default function Timesheets() {
               </div>
 
               <div>
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">Status</label>
+                <label className="mb-1 block font-semibold text-slate-700">Status</label>
                 <select
                   value={form.status}
                   onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
                 >
                   {STATUS_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>
@@ -503,49 +558,45 @@ export default function Timesheets() {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                  Task Description
-                </label>
+                <label className="mb-1 block font-semibold text-slate-700">Task Description</label>
                 <textarea
-                  rows={4}
-                  placeholder="- Worked on..."
+                  rows={3}
+                  placeholder="- Completed development tasks..."
                   value={form.task_description}
                   onChange={(e) => setForm({ ...form, task_description: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               <div className="sm:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-nemilink-navy">
-                  Remarks / Blockers
-                </label>
+                <label className="mb-1 block font-semibold text-slate-700">Remarks / Blockers</label>
                 <textarea
                   rows={2}
-                  placeholder="Any blockers or notes..."
+                  placeholder="Blockers or awaiting review notes..."
                   value={form.remarks}
                   onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-nemilink-navy"
+                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
               </div>
 
               {modalError && (
-                <div className="rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700 sm:col-span-2">
+                <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 sm:col-span-2">
                   {modalError}
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2 sm:col-span-2">
+              <div className="flex justify-end gap-2 pt-1 sm:col-span-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600"
+                  className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-xl bg-nemilink-coral px-5 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 >
                   {saving ? "Saving..." : "Save Entry"}
                 </button>
@@ -557,4 +608,3 @@ export default function Timesheets() {
     </AppShell>
   );
 }
-

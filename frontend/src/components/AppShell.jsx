@@ -3,15 +3,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 import Brand from "./Brand";
 import { useAuth } from "../context/AuthContext";
 
-const ROLE_LABEL = { employee: "Employee", manager: "Manager", hr: "HR" };
+const ROLE_LABEL = { employee: "Employee", manager: "Manager", hr: "HR Admin" };
 
-function Icon({ name, className = "h-5 w-5 shrink-0" }) {
+function Icon({ name, className = "h-4 w-4 shrink-0" }) {
   const props = {
     className,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.85,
+    strokeWidth: 1.75,
     strokeLinecap: "round",
     strokeLinejoin: "round",
     "aria-hidden": "true",
@@ -33,18 +33,18 @@ function Icon({ name, className = "h-5 w-5 shrink-0" }) {
           <path d="M4 20c1.8-3.5 5-5 8-5s6.2 1.5 8 5" />
         </svg>
       );
-    case "leaves":
-      return (
-        <svg {...props}>
-          <rect x="3" y="5" width="18" height="16" rx="2" />
-          <path d="M16 3v4M8 3v4M3 10h18" />
-        </svg>
-      );
     case "timesheets":
       return (
         <svg {...props}>
           <circle cx="12" cy="12" r="9" />
           <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case "leaves":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M16 3v4M8 3v4M3 10h18" />
         </svg>
       );
     case "team":
@@ -72,13 +72,6 @@ function Icon({ name, className = "h-5 w-5 shrink-0" }) {
           <path d="M3 18l9 5 9-5" />
         </svg>
       );
-    case "password":
-      return (
-        <svg {...props}>
-          <rect x="4" y="11" width="16" height="10" rx="2" />
-          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-        </svg>
-      );
     case "logout":
       return (
         <svg {...props}>
@@ -101,12 +94,12 @@ function Icon({ name, className = "h-5 w-5 shrink-0" }) {
 function navItemsFor(role) {
   const items = [
     { to: "/dashboard", label: "Dashboard", icon: "dashboard" },
-    { to: "/profile", label: "My Profile", icon: "profile" },
     { to: "/timesheets", label: "Timesheets", icon: "timesheets" },
     { to: "/leaves", label: "Leaves", icon: "leaves" },
+    { to: "/profile", label: "Profile", icon: "profile" },
   ];
   if (role === "manager" || role === "hr") {
-    items.push({ to: "/team", label: "My Team", icon: "team" });
+    items.push({ to: "/team", label: "Team", icon: "team" });
   }
   if (role === "hr") {
     items.push({ to: "/employees", label: "Employees", icon: "employees" });
@@ -138,7 +131,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
     try {
       localStorage.setItem("nemilink_rail_expanded", expanded ? "1" : "0");
     } catch {
-      /* ignore storage errors */
+      /* ignore */
     }
   }, [expanded]);
 
@@ -147,60 +140,61 @@ export default function AppShell({ title, subtitle, actions, children }) {
   const initials = initialsFor(displayName);
 
   return (
-    <div className="flex min-h-dvh bg-nemilink-lavender text-[#252941]">
-      {/* Desktop Collapsible Icon Rail */}
+    <div className="flex min-h-dvh bg-[#f8f9fb] text-slate-800 antialiased">
+      {/* Desktop Rail */}
       <aside
-        className={`sticky top-0 hidden h-dvh shrink-0 flex-col justify-between border-r border-[#e5e3fa] bg-white/95 py-4 backdrop-blur transition-all duration-200 md:flex ${
-          expanded ? "w-60 px-3.5" : "w-[74px] items-center px-2.5"
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col justify-between border-r border-slate-200/80 bg-white py-3.5 transition-all duration-150 md:flex ${
+          expanded ? "w-52 px-3" : "w-16 items-center px-2"
         }`}
       >
-        <div className="flex w-full flex-col gap-5">
-          {/* Brand + Collapse toggle */}
+        <div className="flex w-full flex-col gap-4">
+          {/* Brand header */}
           <div
             className={`flex items-center ${
-              expanded ? "justify-between px-1" : "flex-col gap-3"
+              expanded ? "justify-between px-1" : "justify-center"
             }`}
           >
-            <NavLink to="/dashboard" className="no-underline" title="Nemilink Workspace">
-              {expanded ? (
-                <Brand />
-              ) : (
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-nemilink-lavender text-lg font-black tracking-tight text-nemilink-navy">
-                  N<span className="text-nemilink-coral">.</span>
-                </span>
-              )}
+            <NavLink to="/dashboard" className="no-underline">
+              <Brand compact={!expanded} />
             </NavLink>
 
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              title={expanded ? "Collapse sidebar" : "Expand sidebar"}
-              aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#e6e8f0] text-gray-500 transition hover:border-nemilink-navy hover:text-nemilink-navy"
-            >
-              <Icon
-                name="chevron"
-                className={`h-4 w-4 transition-transform duration-200 ${
-                  expanded ? "rotate-180" : ""
-                }`}
-              />
-            </button>
+            {expanded && (
+              <button
+                type="button"
+                onClick={() => setExpanded(false)}
+                title="Collapse sidebar"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <Icon name="chevron" className="h-3.5 w-3.5 rotate-180" />
+              </button>
+            )}
           </div>
 
-          {/* Primary Nav */}
-          <nav className="flex w-full flex-col gap-1.5" aria-label="Primary">
+          {!expanded && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              title="Expand sidebar"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <Icon name="chevron" className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {/* Navigation */}
+          <nav className="flex w-full flex-col gap-1" aria-label="Primary">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
                 title={!expanded ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold no-underline transition ${
-                    expanded ? "justify-start" : "justify-center"
+                  `flex items-center gap-2.5 rounded-lg text-xs font-semibold no-underline transition ${
+                    expanded ? "px-3 py-2" : "h-9 w-9 justify-center p-0"
                   } ${
                     isActive
-                      ? "bg-nemilink-navy text-white shadow-xs"
-                      : "text-gray-500 hover:bg-nemilink-lavender hover:text-nemilink-navy"
+                      ? "bg-slate-900 text-white"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                   }`
                 }
               >
@@ -211,131 +205,101 @@ export default function AppShell({ title, subtitle, actions, children }) {
           </nav>
         </div>
 
-        {/* Bottom Account Actions */}
-        <div className="flex w-full flex-col gap-1.5 border-t border-[#f0effc] pt-3">
-          <NavLink
-            to="/change-password"
-            title={!expanded ? "Change password" : undefined}
-            className={({ isActive }) =>
-              `flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold no-underline transition ${
-                expanded ? "justify-start" : "justify-center"
-              } ${
-                isActive
-                  ? "bg-nemilink-lavender text-nemilink-navy"
-                  : "text-gray-500 hover:bg-gray-50 hover:text-nemilink-navy"
-              }`
-            }
-          >
-            <Icon name="password" />
-            {expanded && <span className="truncate">Password</span>}
-          </NavLink>
-
+        {/* Bottom sign out */}
+        <div className="flex w-full flex-col border-t border-slate-100 pt-2">
           <button
             type="button"
             onClick={logout}
             title={!expanded ? "Sign out" : undefined}
-            className={`flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold text-nemilink-coral transition hover:bg-rose-50 ${
-              expanded ? "justify-start" : "justify-center"
+            className={`flex items-center gap-2.5 rounded-lg text-xs font-semibold text-rose-600 transition hover:bg-rose-50 ${
+              expanded ? "px-3 py-2" : "h-9 w-9 justify-center p-0"
             }`}
           >
             <Icon name="logout" />
-            {expanded && <span className="truncate">Sign out</span>}
+            {expanded && <span>Sign out</span>}
           </button>
         </div>
       </aside>
 
-      {/* Main Content Column */}
-      <div className="flex min-w-0 flex-1 flex-col pb-20 md:pb-0">
-        {/* Minimal Topbar */}
-        <header className="sticky top-0 z-30 border-b border-[#e5e3fa] bg-white/85 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
-            <div className="flex items-center gap-3">
+      {/* Main Column */}
+      <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xs">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+            <div className="flex items-center gap-2.5 min-w-0">
               <NavLink to="/dashboard" className="no-underline md:hidden">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-nemilink-lavender text-base font-black text-nemilink-navy">
-                  N<span className="text-nemilink-coral">.</span>
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
+                  N
                 </span>
               </NavLink>
-              <div className="min-w-0">
-                <div className="text-xs font-bold tracking-wider text-nemilink-coral uppercase">
-                  Nemilink Workspace
-                </div>
-                {title && (
-                  <div className="truncate text-base font-extrabold text-nemilink-navy sm:text-lg">
-                    {title}
-                  </div>
-                )}
-              </div>
+              {title && (
+                <h1 className="truncate text-sm font-bold text-slate-900 sm:text-base">
+                  {title}
+                </h1>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {user?.is_super_admin && (
-                <label className="flex items-center gap-1.5 rounded-xl border border-[#dcd9f8] bg-[#faf9ff] px-2.5 py-1.5 text-xs font-bold text-nemilink-navy">
-                  <span className="hidden text-[10px] tracking-wider text-nemilink-coral uppercase sm:inline">
-                    View as
+                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                  <span className="hidden text-[10px] font-semibold text-slate-400 sm:inline uppercase">
+                    Role
                   </span>
                   <select
-                    aria-label="Switch active role"
                     value={user.role}
                     disabled={switchingRole}
                     onChange={async (e) => {
-                      const nextRole = e.target.value;
+                      const next = e.target.value;
                       setSwitchingRole(true);
                       try {
-                        await switchRole(nextRole);
+                        await switchRole(next);
                         navigate("/dashboard", { replace: true });
                       } finally {
                         setSwitchingRole(false);
                       }
                     }}
-                    className="bg-transparent text-xs font-bold text-nemilink-navy outline-none"
+                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
                   >
-                    <option value="hr">HR / Admin</option>
+                    <option value="hr">HR</option>
                     <option value="manager">Manager</option>
                     <option value="employee">Employee</option>
                   </select>
-                </label>
+                </div>
               )}
 
               <NavLink
                 to="/profile"
-                className="flex items-center gap-2.5 rounded-2xl border border-[#ebe9fa] bg-[#faf9ff] px-3 py-1.5 no-underline transition hover:border-nemilink-navy"
+                className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-2 py-1 no-underline transition hover:bg-slate-50"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-nemilink-navy text-xs font-bold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[10px] font-bold text-white">
                   {initials}
                 </span>
-                <div className="hidden text-left sm:block">
-                  <div className="text-xs font-bold text-nemilink-navy">{displayName}</div>
-                  <div className="text-[10px] font-semibold text-gray-400">
-                    {ROLE_LABEL[user?.role] || user?.role}
-                  </div>
-                </div>
+                <span className="hidden text-xs font-semibold text-slate-700 sm:inline">
+                  {displayName}
+                </span>
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                  {ROLE_LABEL[user?.role] || user?.role}
+                </span>
               </NavLink>
-
-              <button
-                type="button"
-                onClick={logout}
-                className="rounded-xl px-2.5 py-1.5 text-xs font-bold text-nemilink-coral hover:bg-rose-50 md:hidden"
-              >
-                Sign out
-              </button>
             </div>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-7">
+        {/* Content */}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6">
           {(subtitle || actions) && (
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-              {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
-              {actions && <div className="flex flex-wrap items-center gap-3">{actions}</div>}
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+              {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
             </div>
           )}
           {children}
         </main>
       </div>
 
-      {/* Mobile Bottom Dock */}
+      {/* Mobile Bottom Bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-[#e5e3fa] bg-white/95 px-2 py-2 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-slate-200 bg-white/95 px-1 py-1.5 backdrop-blur md:hidden"
         aria-label="Mobile"
       >
         {navItems.map((item) => (
@@ -343,13 +307,13 @@ export default function AppShell({ title, subtitle, actions, children }) {
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1 text-[10px] font-bold no-underline transition ${
-                isActive ? "text-nemilink-navy" : "text-gray-400"
+              `flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-semibold no-underline transition ${
+                isActive ? "text-slate-900" : "text-slate-400"
               }`
             }
           >
-            <Icon name={item.icon} className="h-5 w-5" />
-            <span>{item.label.replace("My ", "")}</span>
+            <Icon name={item.icon} className="h-4 w-4" />
+            <span>{item.label}</span>
           </NavLink>
         ))}
       </nav>

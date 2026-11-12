@@ -7,7 +7,7 @@ import { api } from "../lib/api";
 
 function MicrosoftMark() {
   return (
-    <svg className="h-5 w-5 shrink-0" viewBox="0 0 21 21" aria-hidden="true">
+    <svg className="h-4 w-4 shrink-0" viewBox="0 0 21 21" aria-hidden="true">
       <rect x="1" y="1" width="9" height="9" fill="#f25022" />
       <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
       <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
@@ -40,54 +40,55 @@ export default function Login() {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col justify-between bg-nemilink-lavender px-4 py-6 sm:px-6">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between">
+    <main className="flex min-h-dvh flex-col justify-between bg-[#f8f9fb] px-4 py-8 antialiased">
+      <header className="mx-auto flex w-full max-w-4xl items-center justify-between">
         <Brand />
       </header>
 
       <motion.section
         aria-labelledby="login-title"
-        initial={{ opacity: 0, y: 14 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
-        className="mx-auto my-6 w-full max-w-[420px] rounded-3xl border border-[#e7e5fb] bg-white p-8 shadow-lg shadow-indigo-950/5 sm:p-10"
+        transition={{ duration: 0.25 }}
+        className="mx-auto my-auto w-full max-w-[380px] rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs sm:p-7"
       >
-        <div className="text-[11px] font-bold tracking-[0.16em] text-nemilink-coral uppercase">
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
           Employee &amp; HR Portal
         </div>
-        <h1 id="login-title" className="mt-2 text-2xl font-extrabold text-nemilink-navy sm:text-3xl">
+        <h1 id="login-title" className="mt-1 text-xl font-bold text-slate-900">
           Sign in to workspace
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-gray-500">
-          Use your company Microsoft 365 / Teams account to access your profile, leave requests, and team directory.
+        <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+          Use your official Microsoft account to access daily timesheets, leave balances, and team essentials.
         </p>
 
         <button
           type="button"
           onClick={handleMicrosoftClick}
           disabled={redirecting}
-          className="mt-7 flex w-full items-center justify-center gap-3 rounded-2xl bg-nemilink-navy px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+          className="mt-5 flex w-full items-center justify-center gap-2.5 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-2xs transition hover:bg-slate-800 disabled:opacity-60"
         >
           <MicrosoftMark />
-          {redirecting ? "Redirecting to Microsoft…" : "Continue with Microsoft (Teams)"}
+          {redirecting ? "Connecting to Microsoft..." : "Continue with Microsoft (Teams)"}
         </button>
 
         {error && (
           <p
-            className="mt-4 rounded-2xl bg-rose-50 px-4 py-3 text-xs leading-relaxed font-semibold text-rose-700"
+            className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 leading-relaxed"
             role="alert"
           >
             {error}
           </p>
         )}
 
-        <p className="mt-6 border-t border-gray-100 pt-5 text-center text-xs text-gray-400">
-          Need workspace access? Contact your{" "}
-          <span className="font-semibold text-gray-600">HR administrator</span>.
-        </p>
+        <div className="mt-5 border-t border-slate-100 pt-3 text-center text-[11px] text-slate-400">
+          Allowed domains: <span className="font-semibold text-slate-600">@nemilink.com</span> ·{" "}
+          <span className="font-semibold text-slate-600">@maargaai.com</span> ·{" "}
+          <span className="font-semibold text-slate-600">@engencbss.com</span>
+        </div>
       </motion.section>
 
-      <footer className="mx-auto w-full max-w-5xl text-center text-xs text-gray-400">
+      <footer className="mx-auto w-full max-w-4xl text-center text-[11px] text-slate-400">
         © {new Date().getFullYear()} Nemilink Technologies Pvt Ltd
       </footer>
     </main>
