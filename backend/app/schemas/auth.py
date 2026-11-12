@@ -21,6 +21,10 @@ class MicrosoftAuthUrlResponse(BaseModel):
     auth_url: str
 
 
+class SwitchRoleRequest(BaseModel):
+    role: str = Field(pattern="^(employee|manager|hr)$")
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8)
@@ -33,6 +37,7 @@ class UserOut(BaseModel):
     name: Optional[str] = None
     role: str
     is_active: bool
+    is_super_admin: bool = False
     must_change_password: bool
     last_login_at: Optional[datetime] = None
     employee: Optional[EmployeeOut] = None

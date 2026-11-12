@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     microsoft_client_secret: str = ""
     microsoft_redirect_uri: str = "http://localhost:5173/auth/microsoft/callback"
     allowed_login_domains: str = "nemilink.com,maargaai.com,engencbss.com"
+    super_admin_emails: str = "sivachandran@maargaai.com"
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -39,6 +40,10 @@ class Settings(BaseSettings):
     @property
     def allowed_domain_set(self) -> set[str]:
         return {d.strip().lower() for d in self.allowed_login_domains.split(",") if d.strip()}
+
+    @property
+    def super_admin_email_set(self) -> set[str]:
+        return {e.strip().lower() for e in self.super_admin_emails.split(",") if e.strip()}
 
     @property
     def microsoft_sso_enabled(self) -> bool:

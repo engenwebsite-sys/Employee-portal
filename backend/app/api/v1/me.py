@@ -22,6 +22,7 @@ def _serialize_user(db: Session, user: User) -> dict:
         "name": user.name,
         "role": user.role,
         "is_active": user.is_active,
+        "is_super_admin": user.is_super_admin,
         "must_change_password": user.must_change_password,
         "last_login_at": user.last_login_at,
         "employee": emp_dict,

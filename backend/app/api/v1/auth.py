@@ -14,6 +14,7 @@ from app.schemas.auth import (
     MicrosoftAuthUrlResponse,
     MicrosoftCallbackRequest,
     RefreshRequest,
+    SwitchRoleRequest,
     TokenResponse,
 )
 from app.services import auth_service
@@ -118,4 +119,24 @@ def microsoft_callback(
 
     user.must_change_password = False
     user.last_login_at = datetime.now(timezone.utc)
+    return auth_service.issue_tokens(db, user)
+
+
+@router.post(
+    "/switch-role",
+    response_model=TokenResponse,
+    summary="Switch active role (super-admin accounts only)",
+)
+def switch_role(
+    body: SwitchRoleRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    if not user.is_super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super-admin accounts can switch roles.",
+        )
+    user.role = body.role
+    db.commit()
     return auth_service.issue_tokens(db, user)

@@ -76,9 +76,28 @@ export function AuthProvider({ children }) {
     return me;
   }, []);
 
+  const switchRole = useCallback(async (role) => {
+    const data = await api("/auth/switch-role", {
+      method: "POST",
+      body: { role },
+    });
+    tokenStore.set(data);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const value = useMemo(
-    () => ({ user, loading, login, loginWithMicrosoft, logout, changePassword, refreshUser }),
-    [user, loading, login, loginWithMicrosoft, logout, changePassword, refreshUser]
+    () => ({
+      user,
+      loading,
+      login,
+      loginWithMicrosoft,
+      logout,
+      changePassword,
+      refreshUser,
+      switchRole,
+    }),
+    [user, loading, login, loginWithMicrosoft, logout, changePassword, refreshUser, switchRole]
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

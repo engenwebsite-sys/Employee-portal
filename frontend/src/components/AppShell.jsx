@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import Brand from "./Brand";
 import { useAuth } from "../context/AuthContext";
 
@@ -123,7 +123,9 @@ function initialsFor(nameOrEmail) {
 }
 
 export default function AppShell({ title, subtitle, actions, children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, switchRole } = useAuth();
+  const navigate = useNavigate();
+  const [switchingRole, setSwitchingRole] = useState(false);
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem("nemilink_rail_expanded") === "1";
@@ -266,6 +268,34 @@ export default function AppShell({ title, subtitle, actions, children }) {
             </div>
 
             <div className="flex items-center gap-3">
+              {user?.is_super_admin && (
+                <label className="flex items-center gap-1.5 rounded-xl border border-[#dcd9f8] bg-[#faf9ff] px-2.5 py-1.5 text-xs font-bold text-nemilink-navy">
+                  <span className="hidden text-[10px] tracking-wider text-nemilink-coral uppercase sm:inline">
+                    View as
+                  </span>
+                  <select
+                    aria-label="Switch active role"
+                    value={user.role}
+                    disabled={switchingRole}
+                    onChange={async (e) => {
+                      const nextRole = e.target.value;
+                      setSwitchingRole(true);
+                      try {
+                        await switchRole(nextRole);
+                        navigate("/dashboard", { replace: true });
+                      } finally {
+                        setSwitchingRole(false);
+                      }
+                    }}
+                    className="bg-transparent text-xs font-bold text-nemilink-navy outline-none"
+                  >
+                    <option value="hr">HR / Admin</option>
+                    <option value="manager">Manager</option>
+                    <option value="employee">Employee</option>
+                  </select>
+                </label>
+              )}
+
               <NavLink
                 to="/profile"
                 className="flex items-center gap-2.5 rounded-2xl border border-[#ebe9fa] bg-[#faf9ff] px-3 py-1.5 no-underline transition hover:border-nemilink-navy"

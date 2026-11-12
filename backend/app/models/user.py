@@ -55,6 +55,12 @@ class User(Base):
     def name(self) -> Optional[str]:
         return self.employee.name if self.employee else None
 
+    @property
+    def is_super_admin(self) -> bool:
+        from app.core.config import settings
+
+        return self.email.lower() in settings.super_admin_email_set
+
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
