@@ -21,13 +21,14 @@ def build_microsoft_auth_url() -> str:
             "redirect_uri": settings.microsoft_redirect_uri.strip(),
             "response_mode": "query",
             "scope": "openid profile email User.Read",
+            "prompt": "select_account",
         }
     )
     tenant = settings.microsoft_tenant_id.strip()
     return f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?{params}"
 
 
-def exchange_code_for_email(code: str) -> str:
+def exchange_code_for_profile(code: str) -> tuple[str, str]:
     if not settings.microsoft_sso_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -95,5 +96,6 @@ def exchange_code_for_email(code: str) -> str:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Microsoft account did not provide a valid work email.",
         )
-    return email
+    display_name = (profile.get("displayName") or "").strip()
+    return email, display_name
 

@@ -1,13 +1,14 @@
-from datetime import datetime, timezone
+import secrets
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.config import settings
-from app.core.security import verify_password
+from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.models import User
+from app.models import Employee, Role, User
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -18,7 +19,8 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.services import auth_service
-from app.services.microsoft_auth import build_microsoft_auth_url, exchange_code_for_email
+from app.services.employee_service import add_two_months
+from app.services.microsoft_auth import build_microsoft_auth_url, exchange_code_for_profile
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -96,7 +98,7 @@ def microsoft_callback(
     body: MicrosoftCallbackRequest,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
-    email = exchange_code_for_email(body.code)
+    email, display_name = exchange_code_for_profile(body.code)
     domain = email.split("@")[-1].lower()
 
     if settings.allowed_domain_set and domain not in settings.allowed_domain_set:
@@ -107,10 +109,27 @@ def microsoft_callback(
 
     user = auth_service.get_user_by_email(db, email)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Microsoft account is not registered in Nemilink. Please contact HR.",
+        # Auto-provision new company users as employees; HR can promote or assign details later.
+        user = User(
+            email=email,
+            role=Role.EMPLOYEE.value,
+            password_hash=hash_password(secrets.token_urlsafe(24)),
+            is_active=True,
+            must_change_password=False,
         )
+        db.add(user)
+        db.flush()
+        today = date.today()
+        db.add(
+            Employee(
+                user_id=user.id,
+                employee_code=f"EMP-{user.id:04d}",
+                name=display_name or email.split("@")[0].replace(".", " ").title(),
+                joining_date=today,
+                probation_end_date=add_two_months(today),
+            )
+        )
+        db.flush()
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
