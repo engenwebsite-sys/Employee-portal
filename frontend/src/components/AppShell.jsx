@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import Brand from "./Brand";
+import Brand, { NemilinkEmblem } from "./Brand";
 import { useAuth } from "../context/AuthContext";
 
 const ROLE_LABEL = { employee: "Employee", manager: "Manager", hr: "HR Admin" };
@@ -140,8 +140,8 @@ export default function AppShell({ title, subtitle, actions, children }) {
   const initials = initialsFor(displayName);
 
   return (
-    <div className="flex min-h-dvh bg-[#f8f9fb] text-slate-800 antialiased">
-      {/* Desktop Rail */}
+    <div className="flex min-h-dvh bg-[#f8fafc] text-slate-800 antialiased">
+      {/* Desktop Navigation Rail */}
       <aside
         className={`sticky top-0 hidden h-dvh shrink-0 flex-col justify-between border-r border-slate-200/80 bg-white py-3.5 transition-all duration-150 md:flex ${
           expanded ? "w-52 px-3" : "w-16 items-center px-2"
@@ -181,7 +181,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
             </button>
           )}
 
-          {/* Navigation */}
+          {/* Navigation Links */}
           <nav className="flex w-full flex-col gap-1" aria-label="Primary">
             {navItems.map((item) => (
               <NavLink
@@ -193,8 +193,8 @@ export default function AppShell({ title, subtitle, actions, children }) {
                     expanded ? "px-3 py-2" : "h-9 w-9 justify-center p-0"
                   } ${
                     isActive
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                      ? "bg-[#16192e] text-white shadow-2xs"
+                      : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
                   }`
                 }
               >
@@ -224,13 +224,11 @@ export default function AppShell({ title, subtitle, actions, children }) {
       {/* Main Column */}
       <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xs">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+        <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 backdrop-blur-xs">
+          <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-3.5 py-2.5 sm:px-6">
             <div className="flex items-center gap-2.5 min-w-0">
-              <NavLink to="/dashboard" className="no-underline md:hidden">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white">
-                  N
-                </span>
+              <NavLink to="/dashboard" className="no-underline flex items-center md:hidden" title="Nemilink">
+                <NemilinkEmblem className="h-5 w-auto" />
               </NavLink>
               {title && (
                 <h1 className="truncate text-sm font-bold text-slate-900 sm:text-base">
@@ -240,10 +238,11 @@ export default function AppShell({ title, subtitle, actions, children }) {
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Super Admin Switcher */}
               {user?.is_super_admin && (
-                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
-                  <span className="hidden text-[10px] font-semibold text-slate-400 sm:inline uppercase">
-                    Role
+                <div className="flex items-center gap-1 rounded-lg border border-rose-200/80 bg-rose-50/60 px-2 py-1 text-xs">
+                  <span className="hidden text-[10px] font-bold text-[#ea384d] sm:inline uppercase tracking-wide">
+                    Role:
                   </span>
                   <select
                     value={user.role}
@@ -258,26 +257,27 @@ export default function AppShell({ title, subtitle, actions, children }) {
                         setSwitchingRole(false);
                       }
                     }}
-                    className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                    className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
                   >
-                    <option value="hr">HR</option>
-                    <option value="manager">Manager</option>
-                    <option value="employee">Employee</option>
+                    <option value="hr">HR View</option>
+                    <option value="manager">Manager View</option>
+                    <option value="employee">Employee View</option>
                   </select>
                 </div>
               )}
 
+              {/* Profile Pill */}
               <NavLink
                 to="/profile"
                 className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-2 py-1 no-underline transition hover:bg-slate-50"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-900 text-[10px] font-bold text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[#16192e] text-[10px] font-bold text-white">
                   {initials}
                 </span>
-                <span className="hidden text-xs font-semibold text-slate-700 sm:inline">
+                <span className="hidden text-xs font-semibold text-slate-700 sm:inline max-w-[120px] truncate">
                   {displayName}
                 </span>
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
                   {ROLE_LABEL[user?.role] || user?.role}
                 </span>
               </NavLink>
@@ -285,10 +285,10 @@ export default function AppShell({ title, subtitle, actions, children }) {
           </div>
         </header>
 
-        {/* Content */}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6">
+        {/* Content Body */}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-4 sm:px-6 sm:py-5">
           {(subtitle || actions) && (
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
               {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
               {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
             </div>
@@ -297,9 +297,9 @@ export default function AppShell({ title, subtitle, actions, children }) {
         </main>
       </div>
 
-      {/* Mobile Bottom Bar */}
+      {/* Mobile Bottom Navigation Bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-slate-200 bg-white/95 px-1 py-1.5 backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-slate-200/90 bg-white/95 px-1 py-1.5 backdrop-blur-md md:hidden shadow-xs"
         aria-label="Mobile"
       >
         {navItems.map((item) => (
@@ -308,12 +308,19 @@ export default function AppShell({ title, subtitle, actions, children }) {
             to={item.to}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 rounded-lg px-2 py-1 text-[10px] font-semibold no-underline transition ${
-                isActive ? "text-slate-900" : "text-slate-400"
+                isActive ? "text-[#16192e] font-bold" : "text-slate-400 hover:text-slate-600"
               }`
             }
           >
-            <Icon name={item.icon} className="h-4 w-4" />
-            <span>{item.label}</span>
+            {({ isActive }) => (
+              <>
+                <Icon name={item.icon} className="h-4 w-4" />
+                <span>{item.label}</span>
+                {isActive && (
+                  <span className="h-1 w-1 rounded-full bg-[#ea384d]" />
+                )}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>

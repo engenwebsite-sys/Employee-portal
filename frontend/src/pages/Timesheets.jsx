@@ -16,7 +16,7 @@ const PROJECT_SUGGESTIONS = [
 const STATUS_STYLE = {
   Completed: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
   "In Progress": "bg-amber-50 text-amber-700 border border-amber-200/60",
-  Blocked: "bg-rose-50 text-rose-700 border border-rose-200/60",
+  Blocked: "bg-rose-50 text-[#ea384d] border border-rose-200/60",
   "N/A": "bg-slate-100 text-slate-500 border border-slate-200/60",
 };
 
@@ -42,6 +42,14 @@ function formatTime12(hhmm) {
   const suffix = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 || 12;
   return `${String(h12).padStart(2, "0")}:${mStr || "00"} ${suffix}`;
+}
+
+function computeHours(login, logout) {
+  if (!login || !logout) return 0;
+  const [h1, m1] = login.split(":").map(Number);
+  const [h2, m2] = logout.split(":").map(Number);
+  const diff = (h2 * 60 + m2) - (h1 * 60 + m1);
+  return diff > 0 ? (diff / 60) : 0;
 }
 
 function csvEscape(val) {
@@ -154,7 +162,7 @@ export default function Timesheets() {
           login_time: form.login_time || null,
           logout_time: form.logout_time || null,
           project: form.project.trim() || null,
-          task_description: form.task_description,
+          task_description: form.task_description.trim() || null,
           status: form.status,
           remarks: form.remarks.trim() || null,
           day_type: form.day_type,
@@ -163,7 +171,7 @@ export default function Timesheets() {
       setShowModal(false);
       await loadData();
     } catch (err) {
-      setModalError(err.message || "Could not save timesheet entry.");
+      setModalError(err.message || "Failed to save entry.");
     } finally {
       setSaving(false);
     }
@@ -181,18 +189,21 @@ export default function Timesheets() {
 
   function handleExportCsv() {
     const rows = tab === "my" ? myEntries : teamEntries;
+    if (rows.length === 0) return;
+
     const headers = [
       ...(tab === "team" ? ["Employee Code", "Employee Name"] : []),
       "Date",
       "Day",
-      "Login",
-      "Logout",
+      "Login Time",
+      "Logout Time",
       "Project",
       "Task Description",
       "Status",
-      "Remarks / Blockers",
+      "Remarks",
       "Day Type",
     ];
+
     const lines = [headers.map(csvEscape).join(",")];
     for (const r of rows) {
       lines.push(
@@ -223,6 +234,18 @@ export default function Timesheets() {
 
   const activeRows = tab === "my" ? myEntries : teamEntries;
 
+  // Monthly summary calculations
+  const totalLoggedDays = activeRows.length;
+  const totalHours = useMemo(() => {
+    let sum = 0;
+    for (const r of activeRows) {
+      sum += computeHours(r.login_time, r.logout_time);
+    }
+    return sum.toFixed(1);
+  }, [activeRows]);
+  const completedTasks = activeRows.filter((r) => r.status === "Completed").length;
+  const activeTasks = activeRows.filter((r) => r.status === "In Progress" || r.status === "Blocked").length;
+
   return (
     <AppShell
       title="Daily Timesheet"
@@ -246,13 +269,52 @@ export default function Timesheets() {
           <button
             type="button"
             onClick={openNew}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+            className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 shadow-2xs"
           >
             + Log Daily Task
           </button>
         </div>
       }
     >
+      {/* Monthly Summary Cards (Pastel Minimalist & Compact) */}
+      <div className="mb-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Entries Logged
+          </div>
+          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#16192e]">
+            {totalLoggedDays} <span className="text-xs font-normal text-slate-400">days</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Total Hours
+          </div>
+          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#16192e]">
+            {totalHours} <span className="text-xs font-normal text-slate-400">hrs</span>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            Completed
+          </div>
+          <div className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-600">
+            {completedTasks}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            In Progress / Blocked
+          </div>
+          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#ea384d]">
+            {activeTasks}
+          </div>
+        </div>
+      </div>
+
       {canViewTeam && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
@@ -261,7 +323,7 @@ export default function Timesheets() {
               onClick={() => setTab("my")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "my"
-                  ? "bg-slate-900 text-white"
+                  ? "bg-[#16192e] text-white"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -272,7 +334,7 @@ export default function Timesheets() {
               onClick={() => setTab("team")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "team"
-                  ? "bg-slate-900 text-white"
+                  ? "bg-[#16192e] text-white"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -402,21 +464,21 @@ export default function Timesheets() {
               </table>
             </div>
 
-            {/* Mobile Card List View (Clean on phones) */}
+            {/* Mobile Card List View (Clean & Compact on phones) */}
             <div className="divide-y divide-slate-100 sm:hidden">
               {activeRows.map((row) => (
-                <article key={row.id} className="p-3.5 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-bold text-slate-900 text-xs">
-                        {row.work_date} · {formatDayName(row.work_date)}
-                      </div>
-                      <div className="text-[11px] font-semibold text-slate-600">
-                        {row.project || "General"} · {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
-                      </div>
+                <article key={row.id} className="p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-900 text-xs">
+                        {row.work_date}
+                      </span>
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-500">
+                        {formatDayName(row.work_date)}
+                      </span>
                     </div>
                     <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
                         STATUS_STYLE[row.status] || "bg-slate-100 text-slate-600"
                       }`}
                     >
@@ -424,32 +486,46 @@ export default function Timesheets() {
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-slate-800 truncate max-w-[200px]">
+                      {row.project || "General"}
+                    </span>
+                    <span className="shrink-0 text-slate-400 font-medium">
+                      {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
                     {row.task_description || "No task details provided."}
                   </p>
 
                   {row.remarks && (
-                    <div className="rounded bg-slate-50 p-2 text-[11px] text-slate-500">
-                      Blockers: {row.remarks}
+                    <div className="rounded-lg bg-rose-50/50 border border-rose-100/80 p-2 text-[11px] text-[#ea384d]">
+                      <span className="font-semibold">Blockers:</span> {row.remarks}
                     </div>
                   )}
 
                   {tab === "my" && (
-                    <div className="flex justify-end gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(row)}
-                        className="rounded border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(row.id)}
-                        className="rounded border border-rose-200 px-2 py-1 text-[11px] font-semibold text-rose-600"
-                      >
-                        Delete
-                      </button>
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {row.day_type}
+                      </span>
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(row)}
+                          className="rounded-md border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(row.id)}
+                          className="rounded-md border border-rose-200/80 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100/60"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   )}
                 </article>
@@ -459,14 +535,17 @@ export default function Timesheets() {
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal - Bottom Sheet on Mobile / Centered on Desktop */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+          <div className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl">
+            {/* Mobile drag handle */}
+            <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
+
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
               <h2 className="text-sm font-bold text-slate-900">Log Daily Timesheet</h2>
               <button
@@ -596,7 +675,7 @@ export default function Timesheets() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
                 >
                   {saving ? "Saving..." : "Save Entry"}
                 </button>

@@ -66,8 +66,8 @@ export default function Departments() {
       title="Departments"
       subtitle="Organizational departments and member headcount"
     >
-      <div className="grid gap-4 lg:grid-cols-3">
-        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+      <div className="grid gap-3.5 lg:grid-cols-3">
+        <section className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs">
           <h2 className="text-xs font-bold text-slate-900">Add Department</h2>
           <form onSubmit={handleCreate} className="mt-3 space-y-3 text-xs">
             <div>
@@ -102,14 +102,14 @@ export default function Departments() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+              className="w-full rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
             >
               {saving ? "Creating..." : "Create"}
             </button>
           </form>
         </section>
 
-        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
+        <section className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs lg:col-span-2">
           <h2 className="text-xs font-bold text-slate-900">
             Departments ({departments.length})
           </h2>

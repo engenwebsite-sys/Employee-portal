@@ -6,18 +6,20 @@ import { api } from "../lib/api";
 
 function StatCard({ label, value, hint, to, badgeColor = "bg-slate-100 text-slate-700" }) {
   const content = (
-    <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs transition hover:border-slate-300 hover:shadow-xs">
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+    <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3 sm:p-3.5 shadow-2xs transition hover:border-slate-300">
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">
           {label}
         </span>
         {hint && (
-          <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${badgeColor}`}>
+          <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9.5px] font-semibold ${badgeColor}`}>
             {hint}
           </span>
         )}
       </div>
-      <div className="mt-2 text-2xl font-bold text-slate-900">{value}</div>
+      <div className="mt-1.5 text-lg sm:text-2xl font-extrabold tracking-tight text-[#16192e] truncate">
+        {value}
+      </div>
     </div>
   );
   return to ? (
@@ -85,21 +87,21 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <Link
             to="/timesheets"
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white no-underline transition hover:bg-slate-800"
+            className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white no-underline transition hover:bg-slate-900 shadow-2xs"
           >
             + Log Timesheet
           </Link>
           <Link
             to="/leaves"
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
+            className="rounded-lg border border-slate-200/90 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 no-underline transition hover:bg-slate-50"
           >
             Apply Leave
           </Link>
         </div>
       }
     >
-      {/* Stat Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stat Grid - Compact and Responsive */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {user?.role === "hr" && (
           <>
             <StatCard
@@ -107,28 +109,28 @@ export default function Dashboard() {
               value={stats.totalEmployees ?? "—"}
               hint="Directory"
               to="/employees"
-              badgeColor="bg-blue-50 text-blue-700"
+              badgeColor="bg-slate-100 text-slate-700"
             />
             <StatCard
               label="Active"
               value={stats.activeEmployees ?? "—"}
               hint="Enabled"
               to="/employees"
-              badgeColor="bg-emerald-50 text-emerald-700"
+              badgeColor="bg-emerald-50 text-emerald-700 border border-emerald-200/60"
             />
             <StatCard
               label="Departments"
               value={stats.departments ?? "—"}
               hint="Manage"
               to="/departments"
-              badgeColor="bg-purple-50 text-purple-700"
+              badgeColor="bg-rose-50 text-[#ea384d] border border-rose-200/60"
             />
             <StatCard
               label="My Team"
               value={stats.teamCount ?? "—"}
               hint="Direct"
               to="/team"
-              badgeColor="bg-amber-50 text-amber-700"
+              badgeColor="bg-amber-50 text-amber-700 border border-amber-200/60"
             />
           </>
         )}
@@ -140,7 +142,7 @@ export default function Dashboard() {
               value={stats.teamCount ?? "—"}
               hint="Team"
               to="/team"
-              badgeColor="bg-blue-50 text-blue-700"
+              badgeColor="bg-rose-50 text-[#ea384d] border border-rose-200/60"
             />
             <StatCard
               label="Employee Code"
@@ -168,7 +170,7 @@ export default function Dashboard() {
               value={emp?.employee_code || "—"}
               hint={emp?.department?.name || "General"}
               to="/profile"
-              badgeColor="bg-blue-50 text-blue-700"
+              badgeColor="bg-rose-50 text-[#ea384d] border border-rose-200/60"
             />
             <StatCard
               label="Reporting Manager"
@@ -190,21 +192,21 @@ export default function Dashboard() {
       </div>
 
       {/* Main Grid */}
-      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+      <div className="mt-3.5 grid gap-3 lg:grid-cols-3">
         {/* Quick Links Card */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+        <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-xs font-bold text-slate-900">Workspace Essentials</span>
-            <span className="text-[11px] text-slate-400">Quick access</span>
+            <span className="text-[10px] text-slate-400 font-medium">Quick access</span>
           </div>
 
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
             <Link
               to="/timesheets"
-              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+              className="flex items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5 sm:p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <circle cx="12" cy="12" r="9" strokeWidth="1.75" />
                   <path strokeWidth="1.75" d="M12 7v5l3 2" />
                 </svg>
@@ -219,10 +221,10 @@ export default function Dashboard() {
 
             <Link
               to="/leaves"
-              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+              className="flex items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5 sm:p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <rect x="3" y="5" width="18" height="16" rx="2" strokeWidth="1.75" />
                   <path strokeWidth="1.75" d="M16 3v4M8 3v4M3 10h18" />
                 </svg>
@@ -237,10 +239,10 @@ export default function Dashboard() {
 
             <Link
               to="/profile"
-              className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+              className="flex items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5 sm:p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <circle cx="12" cy="8" r="4" strokeWidth="1.75" />
                   <path strokeWidth="1.75" d="M4 20c1.8-3.5 5-5 8-5s6.2 1.5 8 5" />
                 </svg>
@@ -256,10 +258,10 @@ export default function Dashboard() {
             {(user?.role === "manager" || user?.role === "hr") && (
               <Link
                 to="/team"
-                className="flex items-start gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
+                className="flex items-start gap-2.5 rounded-lg border border-slate-100 bg-slate-50/60 p-2.5 sm:p-3 no-underline transition hover:border-slate-200 hover:bg-slate-50"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white border border-slate-200/80 text-slate-700">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <circle cx="9" cy="8" r="3.5" strokeWidth="1.75" />
                     <path strokeWidth="1.75" d="M2.5 19.5c1.3-3 3.8-4.5 6.5-4.5s5.2 1.5 6.5 4.5" />
                   </svg>
@@ -276,7 +278,7 @@ export default function Dashboard() {
         </div>
 
         {/* Company Summary / Profile Sidebar */}
-        <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+        <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs">
           <div>
             <div className="text-xs font-bold text-slate-900">Account Summary</div>
             <div className="mt-3 space-y-2 text-xs">
@@ -302,8 +304,8 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="mt-4 rounded-lg bg-slate-50 p-2.5 text-[11px] text-slate-500 leading-relaxed">
-            Need profile updates or department transfers? Contact your HR Admin.
+          <div className="mt-3.5 rounded-lg bg-rose-50/50 border border-rose-100/70 p-2.5 text-[11px] text-slate-600 leading-relaxed">
+            Need profile updates or role changes? Contact HR Admin at <span className="font-semibold text-[#ea384d]">raja@nemilink.com</span>.
           </div>
         </div>
       </div>

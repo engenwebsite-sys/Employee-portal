@@ -20,11 +20,12 @@ const EMPTY_CREATE = {
 function Modal({ title, onClose, children }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 backdrop-blur-2xs"
       role="dialog"
       aria-modal="true"
     >
-      <div className="max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+      <div className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl">
+        <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
           <h2 className="text-sm font-bold text-slate-900">{title}</h2>
           <button
@@ -82,11 +83,8 @@ export default function Employees() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadDirectory(search, departmentId);
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [search, departmentId, loadDirectory]);
+    loadDirectory(search, departmentId);
+  }, [loadDirectory, search, departmentId]);
 
   function openCreate() {
     setCreateForm(EMPTY_CREATE);
@@ -174,7 +172,7 @@ export default function Employees() {
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800"
+          className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 shadow-2xs"
         >
           + Add Employee
         </button>
@@ -209,7 +207,7 @@ export default function Employees() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Responsive Table / Card Container */}
       <div className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading directory...</div>
@@ -221,64 +219,107 @@ export default function Employees() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
-                <tr>
-                  <th className="px-3.5 py-2.5">Code</th>
-                  <th className="px-3.5 py-2.5">Employee</th>
-                  <th className="px-3.5 py-2.5">Department</th>
-                  <th className="px-3.5 py-2.5">Manager</th>
-                  <th className="px-3.5 py-2.5">Role</th>
-                  <th className="px-3.5 py-2.5">Status</th>
-                  <th className="px-3.5 py-2.5 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {employees.map((emp) => (
-                  <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-3.5 py-2.5 font-bold text-slate-900 whitespace-nowrap">
-                      {emp.employee_code}
-                    </td>
-                    <td className="px-3.5 py-2.5">
-                      <div className="font-semibold text-slate-900">{emp.name}</div>
-                      <div className="text-[11px] text-slate-400">
-                        {emp.designation ? `${emp.designation} · ` : ""}
-                        {emp.email}
-                      </div>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-slate-600">{emp.department?.name || "General"}</td>
-                    <td className="px-3.5 py-2.5 text-slate-600">{emp.manager?.name || "—"}</td>
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 uppercase">
-                        {emp.role}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5 whitespace-nowrap">
-                      <span
-                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                          emp.is_active
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                            : "bg-rose-50 text-rose-700 border border-rose-200/60"
-                        }`}
-                      >
-                        {emp.is_active ? "Active" : "Disabled"}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(emp)}
-                        className="rounded border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                      >
-                        Edit
-                      </button>
-                    </td>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
+                  <tr>
+                    <th className="px-3.5 py-2.5">Code</th>
+                    <th className="px-3.5 py-2.5">Employee</th>
+                    <th className="px-3.5 py-2.5">Department</th>
+                    <th className="px-3.5 py-2.5">Manager</th>
+                    <th className="px-3.5 py-2.5">Role</th>
+                    <th className="px-3.5 py-2.5">Status</th>
+                    <th className="px-3.5 py-2.5 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {employees.map((emp) => (
+                    <tr key={emp.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-3.5 py-2.5 font-bold text-slate-900 whitespace-nowrap">
+                        {emp.employee_code}
+                      </td>
+                      <td className="px-3.5 py-2.5">
+                        <div className="font-semibold text-slate-900">{emp.name}</div>
+                        <div className="text-[11px] text-slate-400">
+                          {emp.designation ? `${emp.designation} · ` : ""}
+                          {emp.email}
+                        </div>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-600">{emp.department?.name || "General"}</td>
+                      <td className="px-3.5 py-2.5 text-slate-600">{emp.manager?.name || "—"}</td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600 uppercase">
+                          {emp.role}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 whitespace-nowrap">
+                        <span
+                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                            emp.is_active
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                              : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                          }`}
+                        >
+                          {emp.is_active ? "Active" : "Disabled"}
+                        </span>
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(emp)}
+                          className="rounded border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card List View */}
+            <div className="divide-y divide-slate-100 sm:hidden">
+              {employees.map((emp) => (
+                <article key={emp.id} className="p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">{emp.name}</div>
+                      <div className="text-[10px] text-slate-400 font-semibold">{emp.employee_code} · {emp.designation || "Member"}</div>
+                    </div>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
+                        emp.is_active
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                          : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                      }`}
+                    >
+                      {emp.is_active ? "Active" : "Disabled"}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600 space-y-0.5">
+                    <div className="truncate">{emp.email}</div>
+                    <div className="text-slate-400">
+                      Dept: <span className="text-slate-700 font-medium">{emp.department?.name || "General"}</span> · Role: <span className="font-semibold uppercase text-slate-700">{emp.role}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(emp)}
+                      className="rounded-md border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit Profile
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -397,7 +438,7 @@ export default function Employees() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
               >
                 {saving ? "Creating..." : "Create"}
               </button>
@@ -488,7 +529,7 @@ export default function Employees() {
                   type="checkbox"
                   checked={editForm.is_active}
                   onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
-                  className="h-3.5 w-3.5 accent-slate-900 rounded"
+                  className="h-3.5 w-3.5 accent-[#16192e] rounded"
                 />
                 Active account (uncheck to disable access)
               </label>
@@ -511,7 +552,7 @@ export default function Employees() {
               <button
                 type="submit"
                 disabled={saving}
-                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
               >
                 {saving ? "Saving..." : "Save Changes"}
               </button>

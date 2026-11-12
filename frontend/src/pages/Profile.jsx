@@ -156,7 +156,7 @@ export default function Profile() {
             <button
               type="submit"
               disabled={!emp || saving}
-              className="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+              className="w-full rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
             >
               {saving ? "Saving..." : "Save Contact Info"}
             </button>

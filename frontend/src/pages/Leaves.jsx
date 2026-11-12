@@ -144,28 +144,28 @@ export default function Leaves() {
             setApplyError("");
             setShowApply(true);
           }}
-          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+          className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 shadow-2xs"
         >
           + Apply Leave
         </button>
       }
     >
       {/* Leave Balance Compact Cards */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {balances.map((b) => (
-          <div key={b.leave_type} className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+          <div key={b.leave_type} className="rounded-xl border border-slate-200/80 bg-white p-3 sm:p-3.5 shadow-2xs">
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
               {b.label}
             </span>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl font-bold text-slate-900">
+              <span className="text-xl sm:text-2xl font-extrabold text-[#16192e]">
                 {b.available === null ? "∞" : b.available}
               </span>
               {b.allocated !== null && (
                 <span className="text-[11px] font-medium text-slate-400">/ {b.allocated} d</span>
               )}
             </div>
-            <div className="mt-1.5 flex gap-2 text-[10px] text-slate-400">
+            <div className="mt-1 flex gap-2 text-[10px] text-slate-400 font-medium">
               <span>Used: {b.used}</span>
               <span>·</span>
               <span>Pending: {b.pending}</span>
@@ -181,14 +181,14 @@ export default function Leaves() {
       )}
 
       {/* Tabs */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
           <button
             type="button"
             onClick={() => setTab("my")}
             className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
               tab === "my"
-                ? "bg-slate-900 text-white"
+                ? "bg-[#16192e] text-white"
                 : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -200,7 +200,7 @@ export default function Leaves() {
               onClick={() => setTab("approvals")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
                 tab === "approvals"
-                  ? "bg-slate-900 text-white"
+                  ? "bg-[#16192e] text-white"
                   : "text-slate-500 hover:text-slate-900"
               }`}
             >
@@ -234,36 +234,149 @@ export default function Leaves() {
               <p className="mt-1 text-xs text-slate-400">Click &quot;+ Apply Leave&quot; when you need time off.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* Desktop Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
+                    <tr>
+                      <th className="px-3.5 py-2.5">Type</th>
+                      <th className="px-3.5 py-2.5">Dates</th>
+                      <th className="px-3.5 py-2.5">Days</th>
+                      <th className="px-3.5 py-2.5">Reason</th>
+                      <th className="px-3.5 py-2.5">Status</th>
+                      <th className="px-3.5 py-2.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {myLeaves.map((req) => (
+                      <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                          {TYPE_LABELS[req.leave_type] || req.leave_type}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600">
+                          {req.start_date} → {req.end_date}
+                        </td>
+                        <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
+                        <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">
+                          <div>{req.reason}</div>
+                          {req.review_comment && (
+                            <div className="mt-0.5 text-[10px] text-slate-400">
+                              Note: {req.review_comment}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <span
+                            className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                              STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right">
+                          {req.status === "pending" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleCancel(req.id)}
+                              className="rounded px-2 py-0.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                            >
+                              Cancel
+                            </button>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Card List */}
+              <div className="divide-y divide-slate-100 sm:hidden">
+                {myLeaves.map((req) => (
+                  <article key={req.id} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-xs">
+                        {TYPE_LABELS[req.leave_type] || req.leave_type}
+                      </span>
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold capitalize ${
+                          STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {req.status}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500">
+                      <span>{req.start_date} → {req.end_date}</span>
+                      <span className="font-bold text-slate-800">{req.days} day{req.days === 1 ? "" : "s"}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                      {req.reason}
+                    </p>
+
+                    {req.review_comment && (
+                      <div className="text-[11px] text-slate-400 italic">
+                        Note: {req.review_comment}
+                      </div>
+                    )}
+
+                    {req.status === "pending" && (
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => handleCancel(req.id)}
+                          className="rounded-md border border-rose-200/80 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100/60"
+                        >
+                          Cancel Request
+                        </button>
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </>
+          )
+        ) : approvals.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400">
+            No team leave requests for this filter.
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table for Approvals */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
                   <tr>
+                    <th className="px-3.5 py-2.5">Employee</th>
                     <th className="px-3.5 py-2.5">Type</th>
                     <th className="px-3.5 py-2.5">Dates</th>
                     <th className="px-3.5 py-2.5">Days</th>
                     <th className="px-3.5 py-2.5">Reason</th>
                     <th className="px-3.5 py-2.5">Status</th>
-                    <th className="px-3.5 py-2.5 text-right">Action</th>
+                    <th className="px-3.5 py-2.5 text-right">Review</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {myLeaves.map((req) => (
+                  {approvals.map((req) => (
                     <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
+                      <td className="px-3.5 py-2.5">
+                        <div className="font-semibold text-slate-800">{req.employee_name}</div>
+                        <div className="text-[10px] text-slate-400">{req.employee_code}</div>
+                      </td>
                       <td className="px-3.5 py-2.5 font-semibold text-slate-800">
                         {TYPE_LABELS[req.leave_type] || req.leave_type}
                       </td>
-                      <td className="px-3.5 py-2.5 text-slate-600">
+                      <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
                         {req.start_date} → {req.end_date}
                       </td>
                       <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
-                      <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">
-                        <div>{req.reason}</div>
-                        {req.review_comment && (
-                          <div className="mt-0.5 text-[10px] text-slate-400">
-                            Note: {req.review_comment}
-                          </div>
-                        )}
-                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">{req.reason}</td>
                       <td className="px-3.5 py-2.5">
                         <span
                           className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
@@ -273,17 +386,34 @@ export default function Leaves() {
                           {req.status}
                         </span>
                       </td>
-                      <td className="px-3.5 py-2.5 text-right">
+                      <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                         {req.status === "pending" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleCancel(req.id)}
-                            className="rounded px-2 py-0.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                          >
-                            Cancel
-                          </button>
+                          <div className="inline-flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewComment("");
+                                setReviewing({ req, action: "approve" });
+                              }}
+                              className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReviewComment("");
+                                setReviewing({ req, action: "reject" });
+                              }}
+                              className="rounded border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                            >
+                              Reject
+                            </button>
+                          </div>
                         ) : (
-                          <span className="text-slate-300">—</span>
+                          <span className="text-[11px] text-slate-400">
+                            {req.reviewed_by_email || "Done"}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -291,95 +421,75 @@ export default function Leaves() {
                 </tbody>
               </table>
             </div>
-          )
-        ) : approvals.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            No team leave requests for this filter.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
-                <tr>
-                  <th className="px-3.5 py-2.5">Employee</th>
-                  <th className="px-3.5 py-2.5">Type</th>
-                  <th className="px-3.5 py-2.5">Dates</th>
-                  <th className="px-3.5 py-2.5">Days</th>
-                  <th className="px-3.5 py-2.5">Reason</th>
-                  <th className="px-3.5 py-2.5">Status</th>
-                  <th className="px-3.5 py-2.5 text-right">Review</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {approvals.map((req) => (
-                  <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-3.5 py-2.5">
-                      <div className="font-semibold text-slate-800">{req.employee_name}</div>
-                      <div className="text-[10px] text-slate-400">{req.employee_code}</div>
-                    </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-slate-800">
-                      {TYPE_LABELS[req.leave_type] || req.leave_type}
-                    </td>
-                    <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
-                      {req.start_date} → {req.end_date}
-                    </td>
-                    <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
-                    <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">{req.reason}</td>
-                    <td className="px-3.5 py-2.5">
-                      <span
-                        className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
-                          STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
-                        }`}
+
+            {/* Mobile Card List for Approvals */}
+            <div className="divide-y divide-slate-100 sm:hidden">
+              {approvals.map((req) => (
+                <article key={req.id} className="p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-slate-900 text-xs">{req.employee_name}</div>
+                      <div className="text-[10px] text-slate-400">{req.employee_code} · {TYPE_LABELS[req.leave_type]}</div>
+                    </div>
+                    <span
+                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold capitalize ${
+                        STATUS_STYLES[req.status] || "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {req.status}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500">
+                    {req.start_date} → {req.end_date} ({req.days} days)
+                  </div>
+
+                  <p className="text-xs text-slate-600 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
+                    {req.reason}
+                  </p>
+
+                  {req.status === "pending" && (
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewComment("");
+                          setReviewing({ req, action: "reject" });
+                        }}
+                        className="rounded-md border border-rose-200/80 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-600"
                       >
-                        {req.status}
-                      </span>
-                    </td>
-                    <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                      {req.status === "pending" ? (
-                        <div className="inline-flex gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReviewComment("");
-                              setReviewing({ req, action: "approve" });
-                            }}
-                            className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReviewComment("");
-                              setReviewing({ req, action: "reject" });
-                            }}
-                            className="rounded border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-[11px] text-slate-400">
-                          {req.reviewed_by_email || "Done"}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        Reject
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReviewComment("");
+                          setReviewing({ req, action: "approve" });
+                        }}
+                        className="rounded-md bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs"
+                      >
+                        Approve
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Apply Modal */}
+      {/* Apply Modal - Bottom Sheet on Mobile */}
       {showApply && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+          <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl">
+            {/* Drawer handle */}
+            <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
+
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
               <h2 className="text-sm font-bold text-slate-900">Apply for Leave</h2>
               <button
@@ -406,17 +516,25 @@ export default function Leaves() {
                 </select>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="mb-1 block font-semibold text-slate-700">Start Date</label>
                   <input
                     type="date"
                     required
                     value={form.start_date}
-                    onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        start_date: next,
+                        end_date: prev.end_date < next ? next : prev.end_date,
+                      }));
+                    }}
                     className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                   />
                 </div>
+
                 <div>
                   <label className="mb-1 block font-semibold text-slate-700">End Date</label>
                   <input
@@ -465,9 +583,9 @@ export default function Leaves() {
                 <button
                   type="submit"
                   disabled={submitting || dayPreview < 1}
-                  className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
                 >
-                  {submitting ? "Submitting..." : "Submit"}
+                  {submitting ? "Submitting..." : "Submit Request"}
                 </button>
               </div>
             </form>
@@ -475,14 +593,15 @@ export default function Leaves() {
         </div>
       )}
 
-      {/* Review Modal */}
+      {/* Review Modal - Bottom Sheet on Mobile */}
       {reviewing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-3 backdrop-blur-2xs"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4 backdrop-blur-2xs"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl">
+            <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
             <h2 className="text-sm font-bold text-slate-900 capitalize">
               {reviewing.action} leave request
             </h2>
@@ -516,7 +635,7 @@ export default function Leaves() {
                   className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
                     reviewing.action === "approve"
                       ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-rose-600 hover:bg-rose-700"
+                      : "bg-[#ea384d] hover:bg-rose-700"
                   }`}
                 >
                   {submitting ? "Saving..." : `Confirm ${reviewing.action}`}
