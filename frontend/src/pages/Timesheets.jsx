@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../lib/api";
+import { api, downloadFile } from "../lib/api";
 
 const STATUS_OPTIONS = ["In Progress", "Completed", "Blocked", "N/A"];
 const DAY_TYPE_OPTIONS = ["Working Day", "Week Off", "Holiday", "Leave", "Half Day"];
@@ -273,6 +273,23 @@ export default function Timesheets() {
     URL.revokeObjectURL(url);
   }
 
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  async function handleExportExcel() {
+    setExportingExcel(true);
+    try {
+      const qs = new URLSearchParams({ month });
+      if (tab === "team" && teamFilterEmp) {
+        qs.set("employee_id", teamFilterEmp);
+      }
+      await downloadFile(`/timesheets/export-excel?${qs.toString()}`, `Daily_Task_${month}.xlsx`);
+    } catch (err) {
+      alert(err.message || "Failed to download Excel timesheet.");
+    } finally {
+      setExportingExcel(false);
+    }
+  }
+
   const activeRows = tab === "my" ? myEntries : teamEntries;
 
   // Monthly summary calculations
@@ -299,6 +316,20 @@ export default function Timesheets() {
             onChange={(e) => setMonth(e.target.value)}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
           />
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exportingExcel}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50/70 px-2.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 transition-colors disabled:opacity-50"
+            title="Download official company template Excel (.xlsx)"
+          >
+            <svg className="h-3.5 w-3.5 text-emerald-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>{exportingExcel ? "Exporting..." : "Export Excel (.xlsx)"}</span>
+          </button>
           <button
             type="button"
             onClick={handleExportCsv}

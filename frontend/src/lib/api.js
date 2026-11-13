@@ -73,3 +73,46 @@ export async function api(path, options = {}) {
 
   return response.status === 204 ? null : response.json();
 }
+
+/** Download binary file (e.g. Excel) with JWT auth and auto-trigger browser download */
+export async function downloadFile(path, defaultFilename = "download.xlsx") {
+  const token = tokenStore.getAccess();
+  let response = await fetch(`${API_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (response.status === 401 && tokenStore.getRefresh()) {
+    await refreshTokens();
+    const newToken = tokenStore.getAccess();
+    response = await fetch(`${API_URL}${path}`, {
+      headers: newToken ? { Authorization: `Bearer ${newToken}` } : {},
+    });
+  }
+
+  if (!response.ok) {
+    let detail;
+    try {
+      detail = (await response.json()).detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(friendlyMessage(detail, "Download failed"), response.status, detail);
+  }
+
+  let filename = defaultFilename;
+  const disposition = response.headers.get("content-disposition");
+  if (disposition && disposition.includes("filename=")) {
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) filename = match[1];
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
