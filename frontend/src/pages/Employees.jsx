@@ -57,6 +57,36 @@ export default function Employees() {
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [showInlineDept, setShowInlineDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [addingDept, setAddingDept] = useState(false);
+  const [deptAddError, setDeptAddError] = useState("");
+
+  async function handleQuickAddDepartment(isEdit = false) {
+    const clean = newDeptName.trim();
+    if (!clean) return;
+    setAddingDept(true);
+    setDeptAddError("");
+    try {
+      const created = await api("/departments", {
+        method: "POST",
+        body: { name: clean },
+      });
+      const updated = [...departments, created].sort((a, b) => a.name.localeCompare(b.name));
+      setDepartments(updated);
+      if (isEdit) {
+        setEditForm((prev) => ({ ...prev, department_id: String(created.id) }));
+      } else {
+        setCreateForm((prev) => ({ ...prev, department_id: String(created.id) }));
+      }
+      setNewDeptName("");
+      setShowInlineDept(false);
+    } catch (err) {
+      setDeptAddError(err.message || "Could not create department.");
+    } finally {
+      setAddingDept(false);
+    }
+  }
 
   const loadDirectory = useCallback(async (q, deptId) => {
     setLoading(true);
@@ -378,7 +408,45 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-semibold text-slate-700">Department</label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="font-semibold text-slate-700">Department</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInlineDept(!showInlineDept);
+                    setDeptAddError("");
+                  }}
+                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+                >
+                  {showInlineDept ? "✕ Cancel" : "+ New Dept"}
+                </button>
+              </div>
+
+              {showInlineDept && (
+                <div className="mb-2 rounded-lg border border-rose-100 bg-rose-50/60 p-2">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="e.g. Mechatronics"
+                      value={newDeptName}
+                      onChange={(e) => setNewDeptName(e.target.value)}
+                      className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-rose-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={addingDept || !newDeptName.trim()}
+                      onClick={() => handleQuickAddDepartment(false)}
+                      className="btn-brand-gradient rounded-md px-2.5 py-1 text-[11px] font-bold text-white disabled:opacity-50"
+                    >
+                      {addingDept ? "..." : "Add"}
+                    </button>
+                  </div>
+                  {deptAddError && (
+                    <p className="mt-1 text-[10px] font-medium text-rose-700">{deptAddError}</p>
+                  )}
+                </div>
+              )}
+
               <select
                 value={createForm.department_id}
                 onChange={(e) => setCreateForm({ ...createForm, department_id: e.target.value })}
@@ -500,7 +568,45 @@ export default function Employees() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block font-semibold text-slate-700">Department</label>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="font-semibold text-slate-700">Department</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInlineDept(!showInlineDept);
+                    setDeptAddError("");
+                  }}
+                  className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+                >
+                  {showInlineDept ? "✕ Cancel" : "+ New Dept"}
+                </button>
+              </div>
+
+              {showInlineDept && (
+                <div className="mb-2 rounded-lg border border-rose-100 bg-rose-50/60 p-2">
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="e.g. Mechatronics"
+                      value={newDeptName}
+                      onChange={(e) => setNewDeptName(e.target.value)}
+                      className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-rose-400"
+                    />
+                    <button
+                      type="button"
+                      disabled={addingDept || !newDeptName.trim()}
+                      onClick={() => handleQuickAddDepartment(true)}
+                      className="btn-brand-gradient rounded-md px-2.5 py-1 text-[11px] font-bold text-white disabled:opacity-50"
+                    >
+                      {addingDept ? "..." : "Add"}
+                    </button>
+                  </div>
+                  {deptAddError && (
+                    <p className="mt-1 text-[10px] font-medium text-rose-700">{deptAddError}</p>
+                  )}
+                </div>
+              )}
+
               <select
                 value={editForm.department_id}
                 onChange={(e) => setEditForm({ ...editForm, department_id: e.target.value })}

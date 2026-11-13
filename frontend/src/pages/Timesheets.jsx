@@ -69,6 +69,11 @@ export default function Timesheets() {
   const [myEntries, setMyEntries] = useState([]);
   const [teamEntries, setTeamEntries] = useState([]);
   const [teamFilterEmp, setTeamFilterEmp] = useState("");
+  const [projects, setProjects] = useState([]);
+  const [showInlineProject, setShowInlineProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [addingProject, setAddingProject] = useState(false);
+  const [projectAddError, setProjectAddError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -106,9 +111,45 @@ export default function Timesheets() {
     }
   }, [month, canViewTeam, teamFilterEmp]);
 
+  const loadProjects = useCallback(async () => {
+    try {
+      const data = await api("/projects?status=Active");
+      setProjects(data);
+    } catch {
+      // fallback
+    }
+  }, []);
+
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadProjects();
+  }, [loadProjects]);
+
+  const projectSuggestions = useMemo(() => {
+    const list = projects.map((p) => p.name);
+    return list.length > 0 ? list : PROJECT_SUGGESTIONS;
+  }, [projects]);
+
+  async function handleQuickAddProject(e) {
+    if (e) e.preventDefault();
+    const clean = newProjectName.trim();
+    if (!clean) return;
+    setAddingProject(true);
+    setProjectAddError("");
+    try {
+      const created = await api("/projects", {
+        method: "POST",
+        body: { name: clean, status: "Active" },
+      });
+      setProjects((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setForm((prev) => ({ ...prev, project: created.name }));
+      setNewProjectName("");
+      setShowInlineProject(false);
+    } catch (err) {
+      setProjectAddError(err.message || "Failed to add project.");
+    } finally {
+      setAddingProject(false);
+    }
+  }
 
   const teamEmployees = useMemo(() => {
     const map = new Map();
@@ -635,7 +676,45 @@ export default function Timesheets() {
               </div>
 
               <div>
-                <label className="mb-1 block font-semibold text-slate-700">Project</label>
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="font-semibold text-slate-700">Project</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowInlineProject(!showInlineProject);
+                      setProjectAddError("");
+                    }}
+                    className="text-[11px] font-semibold text-rose-600 hover:text-rose-700 transition-colors"
+                  >
+                    {showInlineProject ? "✕ Cancel" : "+ Add Project"}
+                  </button>
+                </div>
+
+                {showInlineProject && (
+                  <div className="mb-2 rounded-lg border border-rose-100 bg-rose-50/60 p-2">
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="New project name..."
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-rose-400"
+                      />
+                      <button
+                        type="button"
+                        disabled={addingProject || !newProjectName.trim()}
+                        onClick={handleQuickAddProject}
+                        className="btn-brand-gradient rounded-md px-2.5 py-1 text-[11px] font-bold text-white disabled:opacity-50"
+                      >
+                        {addingProject ? "..." : "Add"}
+                      </button>
+                    </div>
+                    {projectAddError && (
+                      <p className="mt-1 text-[10px] font-medium text-rose-700">{projectAddError}</p>
+                    )}
+                  </div>
+                )}
+
                 <input
                   type="text"
                   list="project-suggestions"
@@ -645,7 +724,7 @@ export default function Timesheets() {
                   className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
                 <datalist id="project-suggestions">
-                  {PROJECT_SUGGESTIONS.map((p) => (
+                  {projectSuggestions.map((p) => (
                     <option key={p} value={p} />
                   ))}
                 </datalist>

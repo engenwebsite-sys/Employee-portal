@@ -72,6 +72,12 @@ function Icon({ name, className = "h-4 w-4 shrink-0" }) {
           <path d="M3 18l9 5 9-5" />
         </svg>
       );
+    case "projects":
+      return (
+        <svg {...props}>
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     case "logout":
       return (
         <svg {...props}>
@@ -100,6 +106,7 @@ function navItemsFor(role) {
   ];
   if (role === "manager" || role === "hr") {
     items.push({ to: "/team", label: "Team", icon: "team" });
+    items.push({ to: "/projects", label: "Projects", icon: "projects" });
   }
   if (role === "hr") {
     items.push({ to: "/employees", label: "Employees", icon: "employees" });
