@@ -1,9 +1,37 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+import app.models  # noqa: F401 registers all models
 from app.api.router import api_router
 from app.core.config import settings
+from app.db.base import Base
+from app.db.session import engine
+from app.models.project import Project
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        # Auto-create any missing tables on startup
+        Base.metadata.create_all(bind=engine)
+        # Seed default projects if table is empty
+        with Session(engine) as db:
+            if not db.query(Project).first():
+                db.add_all([
+                    Project(name="Maarga AI", code="MAI", client="Maarga", status="Active"),
+                    Project(name="Maarga AI & Elder Care", code="MAI-EC", client="Maarga", status="Active"),
+                    Project(name="MaargaAI/CRM-Tool", code="CRM", client="Maarga", status="Active"),
+                    Project(name="Nemilink Portal", code="NL-PORTAL", client="Nemilink Technologies", status="Active"),
+                    Project(name="Internal Tool", code="INT", client="Internal", status="Active"),
+                ])
+                db.commit()
+    except Exception as e:
+        print(f"Startup DB init warning: {e}")
+    yield
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -12,6 +40,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
