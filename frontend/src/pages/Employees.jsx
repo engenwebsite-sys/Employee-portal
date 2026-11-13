@@ -61,6 +61,35 @@ export default function Employees() {
   const [newDeptName, setNewDeptName] = useState("");
   const [addingDept, setAddingDept] = useState(false);
   const [deptAddError, setDeptAddError] = useState("");
+  const [resetResult, setResetResult] = useState(null);
+  const [resettingId, setResettingId] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  async function handleResetPassword(emp) {
+    if (!window.confirm(`Are you sure you want to reset password for ${emp.name} (${emp.email})?`)) return;
+    setResettingId(emp.id);
+    try {
+      const res = await api(`/employees/${emp.id}/reset-password`, { method: "POST" });
+      setResetResult({
+        name: emp.name,
+        email: emp.email,
+        temporary_password: res.temporary_password,
+      });
+      setCopied(false);
+    } catch (err) {
+      alert(err.message || "Failed to reset password.");
+    } finally {
+      setResettingId(null);
+    }
+  }
+
+  function copyPassword() {
+    if (resetResult?.temporary_password) {
+      navigator.clipboard.writeText(resetResult.temporary_password);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
 
   async function handleQuickAddDepartment(isEdit = false) {
     const clean = newDeptName.trim();
@@ -302,13 +331,24 @@ export default function Employees() {
                         </span>
                       </td>
                       <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(emp)}
-                          className="rounded border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Edit
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(emp)}
+                            className="rounded-lg border border-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            disabled={resettingId === emp.id}
+                            onClick={() => handleResetPassword(emp)}
+                            className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                            title="Reset password to a temporary password"
+                          >
+                            {resettingId === emp.id ? "Resetting..." : "Reset Pass"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -343,7 +383,15 @@ export default function Employees() {
                     </div>
                   </div>
 
-                  <div className="flex justify-end pt-1">
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={resettingId === emp.id}
+                      onClick={() => handleResetPassword(emp)}
+                      className="rounded-md border border-amber-200/80 bg-amber-50/60 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                    >
+                      {resettingId === emp.id ? "Resetting..." : "Reset Pass"}
+                    </button>
                     <button
                       type="button"
                       onClick={() => openEdit(emp)}
@@ -720,6 +768,45 @@ export default function Employees() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Password Reset Result Modal */}
+      {resetResult && (
+        <Modal title="Password Reset Successful" onClose={() => setResetResult(null)}>
+          <div className="space-y-4 text-xs">
+            <div className="rounded-xl bg-emerald-50/70 border border-emerald-200/80 p-3.5 text-emerald-900">
+              <p className="font-semibold">
+                Temporary password for <span className="font-bold underline">{resetResult.name}</span> ({resetResult.email}):
+              </p>
+              <div className="mt-2.5 flex items-center justify-between rounded-lg bg-white border border-emerald-200 px-3 py-2">
+                <code className="font-mono text-sm font-black text-slate-900 tracking-wider">
+                  {resetResult.temporary_password}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyPassword}
+                  className="rounded-lg bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-slate-800 transition-colors"
+                >
+                  {copied ? "✓ Copied!" : "📋 Copy"}
+                </button>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              ⚠️ Please share this temporary password with the employee securely. When they sign in using this password, they will be prompted to set a new password of their choice immediately.
+            </p>
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setResetResult(null)}
+                className="btn-brand-gradient rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm hover:shadow-md transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </AppShell>

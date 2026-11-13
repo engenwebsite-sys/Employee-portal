@@ -110,6 +110,44 @@ def api_update_employee(
     return to_employee_out_dict(emp)
 
 
+import secrets
+from pydantic import BaseModel
+from app.core.security import hash_password
+
+class PasswordResetOut(BaseModel):
+    message: str
+    temporary_password: str
+    email: str
+
+
+@router.post("/employees/{employee_id}/reset-password", response_model=PasswordResetOut)
+def api_reset_employee_password(
+    employee_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(Role.HR)),
+):
+    emp = get_employee_or_404(db, employee_id)
+    user = emp.user
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User account not found for this employee.",
+        )
+
+    rand_suffix = secrets.randbelow(9000) + 1000
+    temp_pw = f"Nemilink@{rand_suffix}"
+
+    user.password_hash = hash_password(temp_pw)
+    user.must_change_password = True
+    db.commit()
+
+    return PasswordResetOut(
+        message=f"Password for {emp.name} reset successfully.",
+        temporary_password=temp_pw,
+        email=user.email,
+    )
+
+
 @router.get("/manager/team", response_model=list[EmployeeOut])
 def api_manager_team(
     db: Session = Depends(get_db),
