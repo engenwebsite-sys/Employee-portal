@@ -278,7 +278,7 @@ export default function Timesheets() {
     >
       {/* Monthly Summary Cards (Pastel Minimalist & Compact) */}
       <div className="mb-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
-        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+        <div className="card-pastel p-2.5 sm:p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Entries Logged
           </div>
@@ -287,7 +287,7 @@ export default function Timesheets() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+        <div className="card-pastel p-2.5 sm:p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Total Hours
           </div>
@@ -296,7 +296,7 @@ export default function Timesheets() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+        <div className="card-pastel p-2.5 sm:p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Completed
           </div>
@@ -305,11 +305,11 @@ export default function Timesheets() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200/80 bg-white p-2.5 sm:p-3 shadow-2xs">
+        <div className="card-pastel p-2.5 sm:p-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             In Progress / Blocked
           </div>
-          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#ea384d]">
+          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#ff3366]">
             {activeTasks}
           </div>
         </div>
@@ -366,7 +366,7 @@ export default function Timesheets() {
       )}
 
       {/* Responsive Card/Table Wrapper */}
-      <div className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
+      <div className="card-pastel overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading timesheet records...</div>
         ) : activeRows.length === 0 ? (

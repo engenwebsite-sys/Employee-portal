@@ -153,7 +153,7 @@ export default function Leaves() {
       {/* Leave Balance Compact Cards */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
         {balances.map((b) => (
-          <div key={b.leave_type} className="rounded-xl border border-slate-200/80 bg-white p-3 sm:p-3.5 shadow-2xs">
+          <div key={b.leave_type} className="card-pastel-interactive p-3 sm:p-3.5">
             <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
               {b.label}
             </span>
@@ -224,7 +224,7 @@ export default function Leaves() {
       </div>
 
       {/* Table / List Card */}
-      <div className="mt-3 rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
+      <div className="mt-3 card-pastel overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading leave records...</div>
         ) : tab === "my" ? (

@@ -6,7 +6,7 @@ import { api } from "../lib/api";
 
 function StatCard({ label, value, hint, to, badgeColor = "bg-slate-100 text-slate-700" }) {
   const content = (
-    <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3 sm:p-3.5 shadow-2xs transition hover:border-slate-300">
+    <div className="flex flex-col justify-between card-pastel-interactive p-3 sm:p-3.5">
       <div className="flex items-center justify-between gap-1">
         <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">
           {label}
@@ -194,7 +194,7 @@ export default function Dashboard() {
       {/* Main Grid */}
       <div className="mt-3.5 grid gap-3 lg:grid-cols-3">
         {/* Quick Links Card */}
-        <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs lg:col-span-2">
+        <div className="card-pastel p-3.5 sm:p-4 lg:col-span-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-xs font-bold text-slate-900">Workspace Essentials</span>
             <span className="text-[10px] text-slate-400 font-medium">Quick access</span>
@@ -278,7 +278,7 @@ export default function Dashboard() {
         </div>
 
         {/* Company Summary / Profile Sidebar */}
-        <div className="flex flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs">
+        <div className="flex flex-col justify-between card-pastel p-3.5 sm:p-4">
           <div>
             <div className="text-xs font-bold text-slate-900">Account Summary</div>
             <div className="mt-3 space-y-2 text-xs">

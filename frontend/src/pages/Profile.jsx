@@ -58,7 +58,7 @@ export default function Profile() {
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Workspace Account Details */}
-        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs lg:col-span-2">
+        <section className="card-pastel p-4 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-sm font-bold text-slate-900">
@@ -100,7 +100,7 @@ export default function Profile() {
         </section>
 
         {/* Contact info update */}
-        <section className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs">
+        <section className="card-pastel p-4">
           <h3 className="text-xs font-bold text-slate-900">Contact Details</h3>
           <p className="mt-0.5 text-[11px] text-slate-400">
             Keep your phone and emergency contact current.

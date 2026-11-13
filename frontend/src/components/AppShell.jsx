@@ -286,7 +286,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
         </header>
 
         {/* Content Body */}
-        <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-4 sm:px-6 sm:py-5">
+        <main className="mx-auto w-full max-w-7xl flex-1 px-3.5 py-4 sm:px-6 sm:py-5 animate-page-enter">
           {(subtitle || actions) && (
             <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2.5">
               {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}

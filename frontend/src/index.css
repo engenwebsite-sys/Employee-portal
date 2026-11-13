@@ -1,9 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-nemilink-navy: #16192e;
-  --color-nemilink-coral: #ea384d;
-  --color-nemilink-rose: #fff1f2;
+  --color-nemilink-navy: #1d2c55;
+  --color-nemilink-coral: #ff3366;
+  --color-nemilink-silver: #b5bcc9;
+  --color-nemilink-rose: #fff1f4;
   --color-canvas: #f8fafc;
 }
 
@@ -16,9 +17,10 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --navy: #16192e;
-  --coral: #ea384d;
-  --coral-soft: #fff1f2;
+  --navy: #1d2c55;
+  --coral: #ff3366;
+  --silver: #b5bcc9;
+  --coral-soft: #fff1f4;
   --muted: #64748b;
   --border: #e2e8f0;
 }
@@ -62,4 +64,42 @@ button {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* Subtle card shadow & micro-interactions */
+.card-pastel {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-pastel-interactive {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.03), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-pastel-interactive:hover {
+  border-color: rgba(203, 213, 225, 0.95);
+  box-shadow: 0 6px 16px -3px rgba(29, 44, 85, 0.06), 0 2px 4px -2px rgba(29, 44, 85, 0.03);
+  transform: translateY(-1.5px);
+}
+
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageFadeIn 180ms ease-out forwards;
 }

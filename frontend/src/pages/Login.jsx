@@ -50,7 +50,7 @@ export default function Login() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="mx-auto my-auto w-full max-w-[390px] rounded-2xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-2xs"
+        className="mx-auto my-auto w-full max-w-[390px] card-pastel p-5 sm:p-7 shadow-sm"
       >
         {/* Official Pill Style from Nemilink.com */}
         <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-200/80 bg-rose-50/60 px-2.5 py-0.5 text-[10.5px] font-bold text-[#ea384d]">

@@ -208,7 +208,7 @@ export default function Employees() {
       )}
 
       {/* Responsive Table / Card Container */}
-      <div className="rounded-xl border border-slate-200/80 bg-white shadow-2xs overflow-hidden">
+      <div className="card-pastel overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading directory...</div>
         ) : employees.length === 0 ? (

@@ -67,7 +67,7 @@ export default function Departments() {
       subtitle="Organizational departments and member headcount"
     >
       <div className="grid gap-3.5 lg:grid-cols-3">
-        <section className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs">
+        <section className="card-pastel p-3.5 sm:p-4">
           <h2 className="text-xs font-bold text-slate-900">Add Department</h2>
           <form onSubmit={handleCreate} className="mt-3 space-y-3 text-xs">
             <div>
@@ -109,7 +109,7 @@ export default function Departments() {
           </form>
         </section>
 
-        <section className="rounded-xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-2xs lg:col-span-2">
+        <section className="card-pastel p-3.5 sm:p-4 lg:col-span-2">
           <h2 className="text-xs font-bold text-slate-900">
             Departments ({departments.length})
           </h2>

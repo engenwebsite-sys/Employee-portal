@@ -80,7 +80,7 @@ export default function Team() {
           {filtered.map((emp) => (
             <article
               key={emp.id}
-              className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs hover:border-slate-300 transition-colors"
+              className="card-pastel-interactive p-3.5"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
