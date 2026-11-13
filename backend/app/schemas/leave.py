@@ -18,10 +18,11 @@ class LeaveReview(BaseModel):
 class LeaveBalanceOut(BaseModel):
     leave_type: str
     label: str
-    allocated: Optional[int] = None  # None for unpaid leave
+    allocated: Optional[int] = None  # 10 for CL, 2 for SL, None for unpaid
+    accrued: Optional[int] = None    # Months completed / days accrued so far
     used: int
     pending: int
-    available: Optional[int] = None  # None for unpaid leave
+    available: Optional[int] = None  # Remaining available to apply
 
 
 class LeaveRequestOut(BaseModel):
@@ -41,4 +42,5 @@ class LeaveRequestOut(BaseModel):
     review_comment: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     created_at: datetime
-
+    requires_hr_approval: bool = False
+    team_conflicts: list[str] = []

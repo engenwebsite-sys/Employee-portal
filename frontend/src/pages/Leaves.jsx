@@ -13,8 +13,8 @@ const STATUS_STYLES = {
 const TYPE_LABELS = {
   casual: "Casual Leave",
   sick: "Sick Leave",
-  earned: "Earned Leave",
   unpaid: "Unpaid Leave",
+  earned: "Earned Leave",
 };
 
 function calcDays(start, end) {
@@ -28,6 +28,7 @@ function calcDays(start, end) {
 export default function Leaves() {
   const { user } = useAuth();
   const canApprove = user?.role === "manager" || user?.role === "hr";
+  const isHr = user?.role === "hr";
 
   const [tab, setTab] = useState("my");
   const [balances, setBalances] = useState([]);
@@ -136,7 +137,7 @@ export default function Leaves() {
   return (
     <AppShell
       title="Leaves"
-      subtitle="Leave balances, applications, and team approvals"
+      subtitle="Annual leave balances (10 CL + 2 SL accrued 1/mo), applications, and team approvals"
       actions={
         <button
           type="button"
@@ -151,7 +152,7 @@ export default function Leaves() {
       }
     >
       {/* Leave Balance Compact Cards */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 sm:gap-3">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
         {balances.map((b) => (
           <div key={b.leave_type} className="card-pastel-interactive p-3 sm:p-3.5">
             <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -162,7 +163,9 @@ export default function Leaves() {
                 {b.available === null ? "∞" : b.available}
               </span>
               {b.allocated !== null && (
-                <span className="text-[11px] font-medium text-slate-400">/ {b.allocated} d</span>
+                <span className="text-[10.5px] font-medium text-slate-400">
+                  / {b.allocated} d (Accrued: {b.accrued ?? 0} d)
+                </span>
               )}
             </div>
             <div className="mt-1 flex gap-2 text-[10px] text-slate-400 font-medium">
@@ -257,7 +260,14 @@ export default function Leaves() {
                         <td className="px-3.5 py-2.5 text-slate-600">
                           {req.start_date} → {req.end_date}
                         </td>
-                        <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
+                        <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                          {req.days}
+                          {req.requires_hr_approval && (
+                            <span className="ml-1.5 rounded bg-purple-50 text-purple-700 border border-purple-200 px-1 py-0.2 text-[9px] font-semibold">
+                              3+ days (HR)
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">
                           <div>{req.reason}</div>
                           {req.review_comment && (
@@ -313,7 +323,14 @@ export default function Leaves() {
 
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span>{req.start_date} → {req.end_date}</span>
-                      <span className="font-bold text-slate-800">{req.days} day{req.days === 1 ? "" : "s"}</span>
+                      <span className="font-bold text-slate-800">
+                        {req.days} day{req.days === 1 ? "" : "s"}
+                        {req.requires_hr_approval && (
+                          <span className="ml-1 text-[9px] text-purple-700 font-normal">
+                            (HR approval)
+                          </span>
+                        )}
+                      </span>
                     </div>
 
                     <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/70 p-2 rounded-lg border border-slate-100">
@@ -357,7 +374,7 @@ export default function Leaves() {
                     <th className="px-3.5 py-2.5">Type</th>
                     <th className="px-3.5 py-2.5">Dates</th>
                     <th className="px-3.5 py-2.5">Days</th>
-                    <th className="px-3.5 py-2.5">Reason</th>
+                    <th className="px-3.5 py-2.5">Reason &amp; Conflicts</th>
                     <th className="px-3.5 py-2.5">Status</th>
                     <th className="px-3.5 py-2.5 text-right">Review</th>
                   </tr>
@@ -367,7 +384,7 @@ export default function Leaves() {
                     <tr key={req.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="px-3.5 py-2.5">
                         <div className="font-semibold text-slate-800">{req.employee_name}</div>
-                        <div className="text-[10px] text-slate-400">{req.employee_code}</div>
+                        <div className="text-[10px] text-slate-400">{req.employee_code} · {req.department_name || "General"}</div>
                       </td>
                       <td className="px-3.5 py-2.5 font-semibold text-slate-800">
                         {TYPE_LABELS[req.leave_type] || req.leave_type}
@@ -375,8 +392,21 @@ export default function Leaves() {
                       <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
                         {req.start_date} → {req.end_date}
                       </td>
-                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">{req.days}</td>
-                      <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">{req.reason}</td>
+                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
+                        {req.days}
+                        {req.requires_hr_approval && (
+                          <div className="text-[9.5px] font-bold text-purple-700">3+ d (HR Only)</div>
+                        )}
+                      </td>
+                      <td className="px-3.5 py-2.5 text-slate-600 max-w-sm">
+                        <div>{req.reason}</div>
+                        {req.team_conflicts && req.team_conflicts.length > 0 && (
+                          <div className="mt-1 rounded-md bg-amber-50 border border-amber-200/80 px-2 py-1 text-[10px] text-amber-800">
+                            <span className="font-bold">⚠️ Team Conflict:</span>{" "}
+                            {req.team_conflicts.map((c) => c.split(" · ")[0]).join(", ")} is on leave
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3.5 py-2.5">
                         <span
                           className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold capitalize ${
@@ -388,24 +418,30 @@ export default function Leaves() {
                       </td>
                       <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                         {req.status === "pending" ? (
-                          <div className="inline-flex gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReviewComment("");
-                                setReviewing({ req, action: "approve" });
-                              }}
-                              className="rounded bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-                            >
-                              Approve
-                            </button>
+                          <div className="inline-flex items-center gap-1.5">
+                            {req.requires_hr_approval && !isHr ? (
+                              <span className="rounded bg-purple-50 border border-purple-200 text-purple-700 px-2 py-1 text-[10px] font-bold">
+                                HR Approval Needed
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setReviewComment("");
+                                  setReviewing({ req, action: "approve" });
+                                }}
+                                className="rounded bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 shadow-2xs"
+                              >
+                                Approve
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
                                 setReviewComment("");
                                 setReviewing({ req, action: "reject" });
                               }}
-                              className="rounded border border-rose-200 px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                              className="rounded border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
                             >
                               Reject
                             </button>
@@ -440,16 +476,45 @@ export default function Leaves() {
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-slate-500">
-                    {req.start_date} → {req.end_date} ({req.days} days)
+                  <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                    <span>{req.start_date} → {req.end_date}</span>
+                    <span className="font-bold text-slate-800">
+                      {req.days} days
+                      {req.requires_hr_approval && (
+                        <span className="ml-1 text-[9px] text-purple-700 font-bold">(HR Only)</span>
+                      )}
+                    </span>
                   </div>
 
                   <p className="text-xs text-slate-600 bg-slate-50/70 p-2 rounded-lg border border-slate-100">
                     {req.reason}
                   </p>
 
+                  {req.team_conflicts && req.team_conflicts.length > 0 && (
+                    <div className="rounded-md bg-amber-50 border border-amber-200/80 p-2 text-[10.5px] text-amber-800">
+                      <span className="font-bold">⚠️ Team Conflict:</span>{" "}
+                      {req.team_conflicts.map((c) => c.split(" · ")[0]).join(", ")} is also on leave
+                    </div>
+                  )}
+
                   {req.status === "pending" && (
-                    <div className="flex justify-end gap-2 pt-1">
+                    <div className="flex justify-end items-center gap-2 pt-1">
+                      {req.requires_hr_approval && !isHr ? (
+                        <span className="rounded bg-purple-50 border border-purple-200 text-purple-700 px-2 py-1 text-[10px] font-bold">
+                          HR Approval Needed
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewComment("");
+                            setReviewing({ req, action: "approve" });
+                          }}
+                          className="rounded-md bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs"
+                        >
+                          Approve
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {
@@ -459,16 +524,6 @@ export default function Leaves() {
                         className="rounded-md border border-rose-200/80 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-600"
                       >
                         Reject
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setReviewComment("");
-                          setReviewing({ req, action: "approve" });
-                        }}
-                        className="rounded-md bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white shadow-2xs"
-                      >
-                        Approve
                       </button>
                     </div>
                   )}
@@ -487,7 +542,6 @@ export default function Leaves() {
           aria-modal="true"
         >
           <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl sm:rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-xl">
-            {/* Drawer handle */}
             <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
 
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -509,10 +563,9 @@ export default function Leaves() {
                   onChange={(e) => setForm({ ...form, leave_type: e.target.value })}
                   className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
                 >
-                  <option value="casual">Casual Leave</option>
-                  <option value="sick">Sick Leave</option>
-                  <option value="earned">Earned Leave</option>
-                  <option value="unpaid">Unpaid Leave</option>
+                  <option value="casual">Casual Leave (10/yr · Accrues 1/mo)</option>
+                  <option value="sick">Sick Leave (2/yr · Accrues 1/mo)</option>
+                  <option value="unpaid">Unpaid Leave (Loss of Pay · Unlimited)</option>
                 </select>
               </div>
 
@@ -548,8 +601,13 @@ export default function Leaves() {
                 </div>
               </div>
 
-              <div className="rounded-md bg-slate-50 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
-                Duration: {dayPreview} day{dayPreview === 1 ? "" : "s"}
+              <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
+                <span>Duration: {dayPreview} day{dayPreview === 1 ? "" : "s"}</span>
+                {dayPreview >= 3 && (
+                  <span className="rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 text-[9.5px]">
+                    Requires HR Approval (3+ days)
+                  </span>
+                )}
               </div>
 
               <div>
@@ -567,7 +625,7 @@ export default function Leaves() {
               </div>
 
               {applyError && (
-                <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
+                <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 leading-relaxed">
                   {applyError}
                 </div>
               )}
@@ -609,6 +667,31 @@ export default function Leaves() {
               {reviewing.req.employee_name} · {TYPE_LABELS[reviewing.req.leave_type]} (
               {reviewing.req.days} days)
             </p>
+
+            {/* Team conflict alert inside modal */}
+            {reviewing.req.team_conflicts && reviewing.req.team_conflicts.length > 0 && (
+              <div className="mt-2.5 rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-800 space-y-1">
+                <div className="font-bold flex items-center gap-1 text-amber-900">
+                  <span>⚠️</span> Team Leave Conflict Detected:
+                </div>
+                <div className="text-[11px] space-y-0.5">
+                  {reviewing.req.team_conflicts.map((c, i) => (
+                    <div key={i}>• {c}</div>
+                  ))}
+                </div>
+                <div className="text-[10px] text-amber-700 pt-0.5">
+                  Please verify adequate team coverage before deciding.
+                </div>
+              </div>
+            )}
+
+            {/* HR 3+ days rule alert */}
+            {reviewing.req.requires_hr_approval && (
+              <div className="mt-2 rounded-lg bg-purple-50 border border-purple-200 p-2 text-[11px] text-purple-800 font-medium">
+                📌 Request is for 3 or more days. HR Admin approval is required by company policy.
+              </div>
+            )}
+
             <form onSubmit={handleReviewSubmit} className="mt-3 space-y-3 text-xs">
               <div>
                 <label className="mb-1 block font-semibold text-slate-700">Note (optional)</label>
@@ -634,8 +717,8 @@ export default function Leaves() {
                   disabled={submitting}
                   className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold text-white disabled:opacity-50 ${
                     reviewing.action === "approve"
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-[#ea384d] hover:bg-rose-700"
+                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-2xs"
+                      : "bg-[#ff3366] hover:bg-rose-700 shadow-2xs"
                   }`}
                 >
                   {submitting ? "Saving..." : `Confirm ${reviewing.action}`}

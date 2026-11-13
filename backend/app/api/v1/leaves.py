@@ -34,7 +34,7 @@ def api_my_leaves(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    return [to_leave_out(r) for r in list_my_leaves(db, current_user)]
+    return [to_leave_out(r, db=db) for r in list_my_leaves(db, current_user)]
 
 
 @router.post("", response_model=LeaveRequestOut, status_code=status.HTTP_201_CREATED)
@@ -44,7 +44,7 @@ def api_apply_leave(
     current_user: User = Depends(get_current_user),
 ):
     req = apply_leave(db, current_user, payload)
-    return to_leave_out(req)
+    return to_leave_out(req, db=db)
 
 
 @router.post("/{leave_id}/cancel", response_model=LeaveRequestOut)
@@ -54,7 +54,7 @@ def api_cancel_leave(
     current_user: User = Depends(get_current_user),
 ):
     req = cancel_leave(db, current_user, leave_id)
-    return to_leave_out(req)
+    return to_leave_out(req, db=db)
 
 
 @router.get("/approvals", response_model=list[LeaveRequestOut])
@@ -63,7 +63,10 @@ def api_list_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
 ):
-    return [to_leave_out(r) for r in list_approvals(db, current_user, status_filter=status_filter)]
+    return [
+        to_leave_out(r, db=db)
+        for r in list_approvals(db, current_user, status_filter=status_filter)
+    ]
 
 
 @router.post("/{leave_id}/approve", response_model=LeaveRequestOut)
@@ -80,7 +83,7 @@ def api_approve_leave(
         LeaveStatus.APPROVED,
         comment=payload.comment if payload else None,
     )
-    return to_leave_out(req)
+    return to_leave_out(req, db=db)
 
 
 @router.post("/{leave_id}/reject", response_model=LeaveRequestOut)
@@ -97,5 +100,4 @@ def api_reject_leave(
         LeaveStatus.REJECTED,
         comment=payload.comment if payload else None,
     )
-    return to_leave_out(req)
-
+    return to_leave_out(req, db=db)
