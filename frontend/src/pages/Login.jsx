@@ -17,14 +17,31 @@ function MicrosoftMark() {
 }
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [error, setError] = useState("");
   const [redirecting, setRedirecting] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, login } = useAuth();
   const location = useLocation();
   const destination = location.state?.from ?? "/dashboard";
 
   if (!loading && user) {
     return <Navigate to={user.must_change_password ? "/change-password" : destination} replace />;
+  }
+
+  async function handleEmailLogin(e) {
+    e.preventDefault();
+    setError("");
+    setSigningIn(true);
+    try {
+      await login(email.trim(), password);
+    } catch (err) {
+      setError(err.message || "Invalid work email or password.");
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   async function handleMicrosoftClick() {
@@ -61,18 +78,54 @@ export default function Login() {
           Employee &amp; HR Workspace
         </h1>
         <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-          Sign in with your organization Microsoft account to access daily timesheets, leave balances, and team management.
+          Sign in to access your daily timesheets, leave balances, and profile.
         </p>
 
-        <button
-          type="button"
-          onClick={handleMicrosoftClick}
-          disabled={redirecting}
-          className="mt-5 flex w-full items-center justify-center gap-2.5 btn-navy-gradient rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg disabled:opacity-60 transition-all"
-        >
-          <MicrosoftMark />
-          {redirecting ? "Connecting to Microsoft..." : "Continue with Microsoft (Teams)"}
-        </button>
+        {/* Email & Password Form */}
+        <form onSubmit={handleEmailLogin} className="mt-4 space-y-3 text-xs">
+          <div>
+            <label className="mb-1 block font-semibold text-slate-700">Work Email</label>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="e.g. employee@nemilink.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-400"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block font-semibold text-slate-700">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-400 pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[11px] font-semibold"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={signingIn}
+            className="w-full btn-brand-gradient rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:shadow-md disabled:opacity-60 transition-all active:scale-[0.99]"
+          >
+            {signingIn ? "Signing in..." : "Sign In with Password"}
+          </button>
+        </form>
 
         {error && (
           <p
@@ -82,6 +135,26 @@ export default function Login() {
             {error}
           </p>
         )}
+
+        {/* Divider */}
+        <div className="relative my-4 text-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-200" />
+          </div>
+          <span className="relative bg-white px-2.5 text-[11px] font-semibold text-slate-400">
+            or
+          </span>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleMicrosoftClick}
+          disabled={redirecting}
+          className="flex w-full items-center justify-center gap-2.5 btn-navy-gradient rounded-xl px-4 py-2.5 text-xs font-bold text-white shadow-md hover:shadow-lg disabled:opacity-60 transition-all"
+        >
+          <MicrosoftMark />
+          {redirecting ? "Connecting to Microsoft..." : "Continue with Microsoft (Teams)"}
+        </button>
 
         <div className="mt-5 border-t border-slate-100 pt-3 text-center text-[10.5px] text-slate-400">
           Authorized domains: <span className="font-semibold text-slate-700">@nemilink.com</span> ·{" "}
