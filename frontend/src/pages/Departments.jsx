@@ -102,7 +102,7 @@ export default function Departments() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
+              className="w-full btn-brand-gradient rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm hover:shadow-md disabled:opacity-50 transition-all"
             >
               {saving ? "Creating..." : "Create"}
             </button>

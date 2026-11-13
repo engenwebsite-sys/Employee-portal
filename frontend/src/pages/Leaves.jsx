@@ -144,7 +144,7 @@ export default function Leaves() {
             setApplyError("");
             setShowApply(true);
           }}
-          className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 shadow-2xs"
+          className="btn-brand-gradient rounded-xl px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:shadow-md transition-all flex items-center gap-1"
         >
           + Apply Leave
         </button>
@@ -158,7 +158,7 @@ export default function Leaves() {
               {b.label}
             </span>
             <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="text-xl sm:text-2xl font-extrabold text-[#16192e]">
+              <span className="text-xl sm:text-2xl font-extrabold text-[#1d2c55]">
                 {b.available === null ? "∞" : b.available}
               </span>
               {b.allocated !== null && (
@@ -182,14 +182,14 @@ export default function Leaves() {
 
       {/* Tabs */}
       <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
+        <div className="inline-flex rounded-xl border border-slate-200/80 bg-white p-1 shadow-xs">
           <button
             type="button"
             onClick={() => setTab("my")}
-            className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
               tab === "my"
-                ? "bg-[#16192e] text-white"
-                : "text-slate-500 hover:text-slate-900"
+                ? "btn-brand-gradient shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             My Leaves ({myLeaves.length})
@@ -198,10 +198,10 @@ export default function Leaves() {
             <button
               type="button"
               onClick={() => setTab("approvals")}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                 tab === "approvals"
-                  ? "bg-[#16192e] text-white"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "btn-brand-gradient shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               Approvals ({approvals.length})
@@ -583,7 +583,7 @@ export default function Leaves() {
                 <button
                   type="submit"
                   disabled={submitting || dayPreview < 1}
-                  className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
+                  className="btn-brand-gradient rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm hover:shadow-md disabled:opacity-50 transition-all"
                 >
                   {submitting ? "Submitting..." : "Submit Request"}
                 </button>

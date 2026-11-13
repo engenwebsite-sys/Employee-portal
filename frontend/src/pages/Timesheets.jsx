@@ -269,62 +269,82 @@ export default function Timesheets() {
           <button
             type="button"
             onClick={openNew}
-            className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-900 shadow-2xs"
+            className="btn-brand-gradient rounded-xl px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:shadow-md transition-all flex items-center gap-1"
           >
             + Log Daily Task
           </button>
         </div>
       }
     >
-      {/* Monthly Summary Cards (Pastel Minimalist & Compact) */}
-      <div className="mb-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
-        <div className="card-pastel p-2.5 sm:p-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Entries Logged
+      {/* Monthly Summary Cards (Pastel Minimalist with Elevated Shadows) */}
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3.5">
+        <div className="card-pastel-interactive bg-gradient-to-br from-white via-white to-blue-50/50 p-3 sm:p-3.5 border-blue-100/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+              Entries Logged
+            </span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-600 text-xs font-bold">
+              📅
+            </span>
           </div>
-          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#16192e]">
-            {totalLoggedDays} <span className="text-xs font-normal text-slate-400">days</span>
-          </div>
-        </div>
-
-        <div className="card-pastel p-2.5 sm:p-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Total Hours
-          </div>
-          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#16192e]">
-            {totalHours} <span className="text-xs font-normal text-slate-400">hrs</span>
+          <div className="mt-1 text-xl sm:text-2xl font-extrabold text-[#1d2c55]">
+            {totalLoggedDays} <span className="text-xs font-semibold text-slate-400">days</span>
           </div>
         </div>
 
-        <div className="card-pastel p-2.5 sm:p-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            Completed
+        <div className="card-pastel-interactive bg-gradient-to-br from-white via-white to-indigo-50/50 p-3 sm:p-3.5 border-indigo-100/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+              Total Hours
+            </span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">
+              ⏱️
+            </span>
           </div>
-          <div className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-600">
+          <div className="mt-1 text-xl sm:text-2xl font-extrabold text-[#1d2c55]">
+            {totalHours} <span className="text-xs font-semibold text-slate-400">hrs</span>
+          </div>
+        </div>
+
+        <div className="card-pastel-interactive bg-gradient-to-br from-white via-white to-emerald-50/50 p-3 sm:p-3.5 border-emerald-100/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+              Completed
+            </span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold">
+              ✓
+            </span>
+          </div>
+          <div className="mt-1 text-xl sm:text-2xl font-extrabold text-emerald-600">
             {completedTasks}
           </div>
         </div>
 
-        <div className="card-pastel p-2.5 sm:p-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            In Progress / Blocked
+        <div className="card-pastel-interactive bg-gradient-to-br from-white via-white to-rose-50/50 p-3 sm:p-3.5 border-rose-100/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
+              In Progress / Blocked
+            </span>
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-rose-50 text-[#ff3366] text-xs font-bold">
+              ⚡
+            </span>
           </div>
-          <div className="mt-1 text-lg sm:text-xl font-extrabold text-[#ff3366]">
+          <div className="mt-1 text-xl sm:text-2xl font-extrabold text-[#ff3366]">
             {activeTasks}
           </div>
         </div>
       </div>
 
       {canViewTeam && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs">
+        <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-xl border border-slate-200/80 bg-white p-1 shadow-xs">
             <button
               type="button"
               onClick={() => setTab("my")}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                 tab === "my"
-                  ? "bg-[#16192e] text-white"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "btn-brand-gradient shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               My Timesheet ({myEntries.length})
@@ -332,10 +352,10 @@ export default function Timesheets() {
             <button
               type="button"
               onClick={() => setTab("team")}
-              className={`rounded-md px-3 py-1 text-xs font-semibold transition ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                 tab === "team"
-                  ? "bg-[#16192e] text-white"
-                  : "text-slate-500 hover:text-slate-900"
+                  ? "btn-brand-gradient shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
               }`}
             >
               Team Timesheets ({teamEntries.length})
@@ -370,11 +390,21 @@ export default function Timesheets() {
         {loading ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading timesheet records...</div>
         ) : activeRows.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm font-bold text-slate-800">No entries for {month}</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Click &quot;+ Log Daily Task&quot; to add your workday summary.
+          <div className="p-10 sm:p-14 text-center bg-gradient-to-b from-white to-slate-50/50">
+            <div className="mx-auto mb-3.5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-200/80 shadow-xs text-2xl animate-pulse-glow">
+              📋
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-slate-800">No timesheet records for {month}</h3>
+            <p className="mt-1.5 text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+              Keep your daily hours, achievements, and blockers organized in one place.
             </p>
+            <button
+              type="button"
+              onClick={openNew}
+              className="mt-4 inline-flex items-center gap-1.5 btn-brand-gradient rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm hover:shadow-md transition-all"
+            >
+              + Log Today&apos;s Task
+            </button>
           </div>
         ) : (
           <>
@@ -675,7 +705,7 @@ export default function Timesheets() {
                 <button
                   type="submit"
                   disabled={saving}
-                  className="rounded-lg bg-[#16192e] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-900 disabled:opacity-50 shadow-2xs"
+                  className="btn-brand-gradient rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:shadow-md disabled:opacity-50 transition-all"
                 >
                   {saving ? "Saving..." : "Save Entry"}
                 </button>

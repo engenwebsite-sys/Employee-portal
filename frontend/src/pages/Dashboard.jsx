@@ -87,7 +87,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-2">
           <Link
             to="/timesheets"
-            className="rounded-lg bg-[#16192e] px-3 py-1.5 text-xs font-semibold text-white no-underline transition hover:bg-slate-900 shadow-2xs"
+            className="btn-brand-gradient rounded-xl px-3.5 py-1.5 text-xs font-bold text-white no-underline shadow-sm hover:shadow-md transition-all flex items-center gap-1"
           >
             + Log Timesheet
           </Link>
