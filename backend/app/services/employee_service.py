@@ -164,6 +164,33 @@ def update_employee(db: Session, employee_id: int, payload: EmployeeUpdate) -> E
     emp = get_employee_or_404(db, employee_id)
     data = payload.model_dump(exclude_unset=True)
 
+    if "employee_code" in data and data["employee_code"] is not None:
+        code_clean = data["employee_code"].strip().upper()
+        existing = db.scalar(
+            select(Employee).where(Employee.employee_code == code_clean, Employee.id != emp.id)
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Employee code is already in use by another employee.",
+            )
+        emp.employee_code = code_clean
+
+    if "email" in data and data["email"] is not None:
+        email_clean = data["email"].strip().lower()
+        existing_user = db.scalar(
+            select(User).where(User.email == email_clean, User.id != emp.user_id)
+        )
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Email address is already in use by another account.",
+            )
+        emp.user.email = email_clean
+
+    if "joining_date" in data and data["joining_date"] is not None:
+        emp.joining_date = data["joining_date"]
+
     if "department_id" in data:
         _validate_department(db, data["department_id"])
         emp.department_id = data["department_id"]

@@ -95,12 +95,15 @@ export default function Employees() {
   function openEdit(emp) {
     setEditing(emp);
     setEditForm({
+      employee_code: emp.employee_code || "",
+      email: emp.email || "",
       role: emp.role,
       is_active: emp.is_active,
       name: emp.name,
       department_id: emp.department?.id ? String(emp.department.id) : "",
       designation: emp.designation || "",
       manager_id: emp.manager?.id ? String(emp.manager.id) : "",
+      joining_date: emp.joining_date || "",
       probation_end_date: emp.probation_end_date || "",
       phone: emp.phone || "",
       emergency_contact: emp.emergency_contact || "",
@@ -144,12 +147,15 @@ export default function Employees() {
     setModalError("");
     try {
       const payload = {
+        employee_code: editForm.employee_code.trim(),
+        email: editForm.email.trim(),
         role: editForm.role,
         is_active: editForm.is_active,
         name: editForm.name.trim(),
         department_id: editForm.department_id ? Number(editForm.department_id) : null,
         designation: editForm.designation.trim() || null,
         manager_id: editForm.manager_id ? Number(editForm.manager_id) : null,
+        joining_date: editForm.joining_date || null,
         probation_end_date: editForm.probation_end_date || null,
         phone: editForm.phone.trim() || null,
         emergency_contact: editForm.emergency_contact.trim() || null,
@@ -449,7 +455,7 @@ export default function Employees() {
 
       {/* Edit Modal */}
       {editing && editForm && (
-        <Modal title={`Edit ${editing.name} (${editing.employee_code})`} onClose={() => setEditing(null)}>
+        <Modal title={`Edit Profile — ${editing.name} (${editing.employee_code})`} onClose={() => setEditing(null)}>
           <form onSubmit={handleEditSubmit} className="grid gap-2.5 sm:grid-cols-2 text-xs">
             <div>
               <label className="mb-1 block font-semibold text-slate-700">Full Name *</label>
@@ -458,6 +464,26 @@ export default function Employees() {
                 required
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block font-semibold text-slate-700">Employee Code *</label>
+              <input
+                type="text"
+                required
+                value={editForm.employee_code}
+                onChange={(e) => setEditForm({ ...editForm, employee_code: e.target.value })}
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400 uppercase"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block font-semibold text-slate-700">Work Email *</label>
+              <input
+                type="email"
+                required
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                 className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
@@ -515,11 +541,41 @@ export default function Employees() {
               </select>
             </div>
             <div>
+              <label className="mb-1 block font-semibold text-slate-700">Joining Date *</label>
+              <input
+                type="date"
+                required
+                value={editForm.joining_date}
+                onChange={(e) => setEditForm({ ...editForm, joining_date: e.target.value })}
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block font-semibold text-slate-700">Probation End Date</label>
+              <input
+                type="date"
+                value={editForm.probation_end_date}
+                onChange={(e) => setEditForm({ ...editForm, probation_end_date: e.target.value })}
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
+              />
+            </div>
+            <div>
               <label className="mb-1 block font-semibold text-slate-700">Phone</label>
               <input
                 type="text"
+                placeholder="+91 98765 43210"
                 value={editForm.phone}
                 onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="mb-1 block font-semibold text-slate-700">Emergency Contact</label>
+              <input
+                type="text"
+                placeholder="Name - Relationship - Phone"
+                value={editForm.emergency_contact}
+                onChange={(e) => setEditForm({ ...editForm, emergency_contact: e.target.value })}
                 className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>

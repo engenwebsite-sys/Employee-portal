@@ -56,12 +56,15 @@ class EmployeeCreate(BaseModel):
 
 
 class EmployeeUpdate(BaseModel):
+    employee_code: Optional[str] = Field(default=None, min_length=2, max_length=20)
+    email: Optional[EmailStr] = None
     role: Optional[str] = Field(default=None, pattern="^(employee|manager|hr)$")
     is_active: Optional[bool] = None
     name: Optional[str] = Field(default=None, min_length=2, max_length=150)
     department_id: Optional[int] = None
     designation: Optional[str] = Field(default=None, max_length=100)
     manager_id: Optional[int] = None
+    joining_date: Optional[date] = None
     probation_end_date: Optional[date] = None
     phone: Optional[str] = Field(default=None, max_length=20)
     emergency_contact: Optional[str] = Field(default=None, max_length=255)
