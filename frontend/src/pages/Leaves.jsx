@@ -23,12 +23,21 @@ const TYPE_LABELS = {
   earned: "Earned Leave",
 };
 
-function calcDays(start, end) {
+function calcWorkingDays(start, end) {
   if (!start || !end) return 0;
   const s = new Date(`${start}T00:00:00`);
   const e = new Date(`${end}T00:00:00`);
-  const diff = Math.round((e - s) / 86400000) + 1;
-  return diff > 0 ? diff : 0;
+  if (e < s) return 0;
+  let count = 0;
+  const cur = new Date(s);
+  while (cur <= e) {
+    const day = cur.getDay(); // 0 = Sunday, 6 = Saturday
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 }
 
 export default function Leaves() {
@@ -73,7 +82,7 @@ export default function Leaves() {
   const [reviewComment, setReviewComment] = useState("");
 
   const dayPreview = useMemo(
-    () => calcDays(form.start_date, form.end_date),
+    () => calcWorkingDays(form.start_date, form.end_date),
     [form.start_date, form.end_date]
   );
 
@@ -886,12 +895,24 @@ export default function Leaves() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between rounded-lg bg-slate-50 border border-slate-100 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600">
-                <span>Duration: {dayPreview} day{dayPreview === 1 ? "" : "s"}</span>
-                {dayPreview >= 3 && (
-                  <span className="rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 text-[9.5px]">
-                    Requires HR Approval (3+ days)
+              <div className="flex flex-col gap-1 rounded-lg bg-slate-50 border border-slate-100 p-2.5 text-xs text-slate-700">
+                <div className="flex items-center justify-between font-semibold">
+                  <span>
+                    Duration: {dayPreview} working day{dayPreview === 1 ? "" : "s"}
                   </span>
+                  {dayPreview >= 3 && (
+                    <span className="rounded bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 text-[9.5px]">
+                      Requires HR Approval (3+ days)
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10.5px] text-slate-400 font-normal">
+                  🌿 Excludes weekends (Sat &amp; Sun). Only working days are deducted.
+                </div>
+                {dayPreview === 0 && form.start_date && form.end_date && (
+                  <div className="text-[11px] text-amber-700 font-medium pt-1">
+                    ⚠️ Selected range falls entirely on weekends (Sat/Sun). Leave is only required for working days.
+                  </div>
                 )}
               </div>
 

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
@@ -34,6 +34,22 @@ def _require_employee(user: User) -> Employee:
             detail="Your account does not have an employee profile yet.",
         )
     return user.employee
+
+
+def count_working_days(start_date: date, end_date: date) -> int:
+    """
+    Count working days (Monday to Friday) between start_date and end_date inclusive.
+    Saturdays (5) and Sundays (6) are excluded from employee leave deductions.
+    """
+    if end_date < start_date:
+        return 0
+    count = 0
+    cur = start_date
+    while cur <= end_date:
+        if cur.weekday() < 5:  # 0=Monday ... 4=Friday
+            count += 1
+        cur += timedelta(days=1)
+    return count
 
 
 def compute_accrued_months(as_of: date, joining_date: date | None = None) -> int:
@@ -236,7 +252,12 @@ def apply_leave(db: Session, user: User, payload: LeaveApply) -> LeaveRequest:
             detail="End date cannot be earlier than start date.",
         )
 
-    days = (payload.end_date - payload.start_date).days + 1
+    days = count_working_days(payload.start_date, payload.end_date)
+    if days < 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The selected date range falls entirely on weekends (Sat/Sun). Leave is only required for working days (Mon-Fri).",
+        )
 
     # Check overlapping pending/approved requests for the same employee
     overlap = db.scalar(
