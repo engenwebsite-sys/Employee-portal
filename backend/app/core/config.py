@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     """Application settings, loaded from environment variables or the .env file."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=(".env", "backend/.env"), env_file_encoding="utf-8", extra="ignore"
     )
 
     app_name: str = "Nemilink Employee Portal API"
