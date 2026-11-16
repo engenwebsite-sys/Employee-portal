@@ -127,6 +127,7 @@ export default function AppShell({ title, subtitle, actions, children }) {
   const { user, logout, switchRole } = useAuth();
   const navigate = useNavigate();
   const [switchingRole, setSwitchingRole] = useState(false);
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem("nemilink_rail_expanded") === "1";
@@ -279,10 +280,11 @@ export default function AppShell({ title, subtitle, actions, children }) {
                 to="/profile"
                 className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-2 py-1 no-underline transition hover:bg-slate-50"
               >
-                {user?.employee?.avatar_url ? (
+                {user?.employee?.avatar_url && !avatarBroken ? (
                   <img
                     src={getAssetUrl(user.employee.avatar_url)}
                     alt={displayName}
+                    onError={() => setAvatarBroken(true)}
                     className="h-6 w-6 rounded-md object-cover border border-slate-200/80"
                   />
                 ) : (

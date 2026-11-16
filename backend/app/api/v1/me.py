@@ -1,6 +1,7 @@
 from pathlib import Path
 import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
@@ -86,8 +87,9 @@ def upload_my_avatar(
 
     emp = current_user.employee
     # Clean up previous avatar if stored in uploads
-    if emp.avatar_url and emp.avatar_url.startswith("/uploads/avatars/"):
-        prev_file = Path(emp.avatar_url.lstrip("/"))
+    if emp.avatar_url:
+        old_filename = emp.avatar_url.split("/")[-1]
+        prev_file = AVATARS_DIR / old_filename
         if prev_file.exists():
             try:
                 prev_file.unlink()
@@ -100,7 +102,7 @@ def upload_my_avatar(
     with open(target_path, "wb") as f:
         f.write(content)
 
-    emp.avatar_url = f"/uploads/avatars/{unique_filename}"
+    emp.avatar_url = f"/api/v1/uploads/avatars/{unique_filename}"
     db.commit()
     db.refresh(emp)
     db.refresh(current_user)
@@ -120,8 +122,9 @@ def delete_my_avatar(
         )
 
     emp = current_user.employee
-    if emp.avatar_url and emp.avatar_url.startswith("/uploads/avatars/"):
-        prev_file = Path(emp.avatar_url.lstrip("/"))
+    if emp.avatar_url:
+        old_filename = emp.avatar_url.split("/")[-1]
+        prev_file = AVATARS_DIR / old_filename
         if prev_file.exists():
             try:
                 prev_file.unlink()
@@ -134,3 +137,17 @@ def delete_my_avatar(
     db.refresh(current_user)
 
     return _serialize_user(db, current_user)
+
+
+@router.get("/uploads/avatars/{filename}")
+def serve_avatar(filename: str):
+    target = AVATARS_DIR / filename
+    if not target.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Avatar image file not found",
+        )
+    ext = filename.split(".")[-1].lower()
+    media_type = f"image/{ext}" if ext in {"png", "webp", "gif"} else "image/jpeg"
+    return FileResponse(target, media_type=media_type)
+

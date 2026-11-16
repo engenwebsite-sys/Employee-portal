@@ -34,6 +34,11 @@ export default function Profile() {
   const fileInputRef = useRef(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState("");
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [emp?.avatar_url]);
 
   useEffect(() => {
     setPhone(emp?.phone || "");
@@ -115,10 +120,11 @@ export default function Profile() {
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   className="hidden"
                 />
-                {emp?.avatar_url ? (
+                {emp?.avatar_url && !imgError ? (
                   <img
                     src={getAssetUrl(emp.avatar_url)}
                     alt={emp.name || "Profile"}
+                    onError={() => setImgError(true)}
                     className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-white shadow-sm ring-2 ring-slate-100"
                   />
                 ) : (

@@ -120,11 +120,56 @@ export async function downloadFile(path, defaultFilename = "download.xlsx") {
 /** Formats local or relative upload path into full accessible URL */
 export function getAssetUrl(path) {
   if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
-    return path;
+  if (path.startsWith("data:")) return path;
+
+  // If path is a full URL but pointing to localhost in non-localhost browser, strip origin
+  let normalized = path;
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    try {
+      const u = new URL(normalized);
+      if (
+        (u.hostname === "localhost" || u.hostname === "127.0.0.1") &&
+        typeof window !== "undefined" &&
+        window.location.hostname !== "localhost" &&
+        window.location.hostname !== "127.0.0.1"
+      ) {
+        normalized = u.pathname;
+      } else {
+        return normalized;
+      }
+    } catch {
+      return normalized;
+    }
   }
-  const base = API_URL.replace(/\/api\/v1\/?$/, "");
-  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  // Ensure path routes through /api/v1 so Nginx forwards it to FastAPI backend
+  if (normalized.startsWith("/uploads/")) {
+    normalized = `/api/v1${normalized}`;
+  } else if (!normalized.startsWith("/api/")) {
+    normalized = `/api/v1/uploads/${normalized.replace(/^\/+/, "")}`;
+  }
+
+  // If in browser production environment, check API_URL host
+  if (typeof window !== "undefined" && window.location?.origin) {
+    if (API_URL.startsWith("http://") || API_URL.startsWith("https://")) {
+      try {
+        const apiUrlObj = new URL(API_URL);
+        if (
+          (apiUrlObj.hostname === "localhost" || apiUrlObj.hostname === "127.0.0.1") &&
+          window.location.hostname !== "localhost" &&
+          window.location.hostname !== "127.0.0.1"
+        ) {
+          // Use same-origin relative URL so it goes to nemilink-portal.duckdns.org/api/...
+          return normalized;
+        }
+        return `${apiUrlObj.origin}${normalized}`;
+      } catch {
+        return normalized;
+      }
+    }
+    return normalized;
+  }
+  return normalized;
 }
 
 /** Upload avatar image file via multipart form-data */
