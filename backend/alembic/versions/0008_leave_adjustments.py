@@ -14,27 +14,32 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "leave_adjustments",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("employee_id", sa.Integer(), nullable=False),
-        sa.Column("year", sa.Integer(), nullable=False),
-        sa.Column("leave_type", sa.String(length=20), nullable=False, server_default="casual"),
-        sa.Column("days", sa.Integer(), nullable=False),
-        sa.Column("reason", sa.String(length=500), nullable=False),
-        sa.Column("adjusted_by_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at",
-            sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
-            nullable=False,
-        ),
-        sa.ForeignKeyConstraint(["employee_id"], ["employees.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["adjusted_by_id"], ["users.id"], ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_leave_adjustments_employee_id", "leave_adjustments", ["employee_id"], unique=False)
-    op.create_index("ix_leave_adjustments_year", "leave_adjustments", ["year"], unique=False)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    tables = inspector.get_table_names()
+
+    if "leave_adjustments" not in tables:
+        op.create_table(
+            "leave_adjustments",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("employee_id", sa.Integer(), nullable=False),
+            sa.Column("year", sa.Integer(), nullable=False),
+            sa.Column("leave_type", sa.String(length=20), nullable=False, server_default="casual"),
+            sa.Column("days", sa.Integer(), nullable=False),
+            sa.Column("reason", sa.String(length=500), nullable=False),
+            sa.Column("adjusted_by_id", sa.Integer(), nullable=True),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.ForeignKeyConstraint(["employee_id"], ["employees.id"], ondelete="CASCADE"),
+            sa.ForeignKeyConstraint(["adjusted_by_id"], ["users.id"], ondelete="SET NULL"),
+            sa.PrimaryKeyConstraint("id"),
+        )
+        op.create_index("ix_leave_adjustments_employee_id", "leave_adjustments", ["employee_id"], unique=False)
+        op.create_index("ix_leave_adjustments_year", "leave_adjustments", ["year"], unique=False)
 
 
 def downgrade() -> None:

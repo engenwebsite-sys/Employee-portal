@@ -14,7 +14,11 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("employees", sa.Column("avatar_url", sa.String(length=500), nullable=True))
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    cols = [c["name"] for c in inspector.get_columns("employees")]
+    if "avatar_url" not in cols:
+        op.add_column("employees", sa.Column("avatar_url", sa.String(length=500), nullable=True))
 
 
 def downgrade() -> None:
