@@ -689,7 +689,14 @@ export default function Leaves() {
                               </div>
                             )}
                             <div>
-                              <div className="font-semibold text-slate-900">{emp.name}</div>
+                              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                <span>{emp.name}</span>
+                                {emp.email === user?.email && (
+                                  <span className="rounded bg-rose-50 border border-rose-200 text-rose-600 px-1.5 py-0.2 text-[9.5px] font-bold">
+                                    You
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-[11px] text-slate-400">
                                 {emp.employee_code} {emp.designation ? `· ${emp.designation}` : ""}
                               </div>

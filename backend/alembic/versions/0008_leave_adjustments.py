@@ -41,3 +41,4 @@ def downgrade() -> None:
     op.drop_index("ix_leave_adjustments_year", table_name="leave_adjustments")
     op.drop_index("ix_leave_adjustments_employee_id", table_name="leave_adjustments")
     op.drop_table("leave_adjustments")
+

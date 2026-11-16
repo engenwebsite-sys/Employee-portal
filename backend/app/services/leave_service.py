@@ -366,7 +366,8 @@ def get_all_employees_leave_summary(
     employees = list(
         db.scalars(
             select(Employee)
-            .where(Employee.is_active == True)
+            .join(Employee.user)
+            .where(User.is_active == True)
             .options(joinedload(Employee.department), joinedload(Employee.user))
             .order_by(Employee.name.asc())
         ).all()
