@@ -52,9 +52,9 @@ export default function Login() {
         transition={{ duration: 0.25 }}
         className="mx-auto my-auto w-full max-w-[390px] card-pastel p-5 sm:p-7 shadow-sm"
       >
-        {/* Official Pill Style from Nemilink.com */}
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-200/80 bg-rose-50/60 px-2.5 py-0.5 text-[10.5px] font-bold text-[#ea384d]">
-          Nemilink Technologies
+        {/* Official Pill Style */}
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-teal-200/80 bg-teal-50/60 px-2.5 py-0.5 text-[10.5px] font-bold text-teal-800">
+          Engen CBSS
         </div>
 
         <h1 id="login-title" className="mt-2 text-xl font-extrabold tracking-tight text-[#16192e]">
@@ -84,14 +84,14 @@ export default function Login() {
         )}
 
         <div className="mt-5 border-t border-slate-100 pt-3 text-center text-[10.5px] text-slate-400">
-          Authorized domains: <span className="font-semibold text-slate-700">@nemilink.com</span> ·{" "}
+          Authorized domains: <span className="font-semibold text-slate-700">@engencbss.com</span> ·{" "}
           <span className="font-semibold text-slate-700">@maargaai.com</span> ·{" "}
-          <span className="font-semibold text-slate-700">@engencbss.com</span>
+          <span className="font-semibold text-slate-700">@nemilink.com</span>
         </div>
       </motion.section>
 
       <footer className="mx-auto w-full max-w-4xl text-center text-[10.5px] text-slate-400">
-        © {new Date().getFullYear()} Nemilink Technologies Pvt Ltd · All rights reserved.
+        © {new Date().getFullYear()} Engen · All rights reserved.
       </footer>
     </main>
   );

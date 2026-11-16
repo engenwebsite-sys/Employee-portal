@@ -1,22 +1,25 @@
-export function NemilinkEmblem({ className = "h-7 w-auto shrink-0" }) {
+export function EngenEmblem({ className = "h-7 w-auto shrink-0" }) {
   return (
     <img
-      src="/nemilink-emblem.png"
-      alt="Nemilink Emblem"
+      src="/engen-emblem.png"
+      alt="Engen Emblem"
       className={`${className} object-contain`}
       loading="eager"
     />
   );
 }
 
+// Keep NemilinkEmblem alias for backwards compatibility
+export const NemilinkEmblem = EngenEmblem;
+
 export default function Brand({ compact = false }) {
   if (compact) {
     return (
       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50/80 border border-slate-200/80 transition hover:bg-slate-100 hover:border-slate-300">
         <img
-          src="/nemilink-emblem.png"
-          alt="Nemilink Emblem"
-          className="h-5 w-auto object-contain"
+          src="/engen-emblem.png"
+          alt="Engen Emblem"
+          className="h-6 w-auto object-contain"
           loading="eager"
         />
       </div>
@@ -26,9 +29,9 @@ export default function Brand({ compact = false }) {
   return (
     <div className="flex items-center">
       <img
-        src="/nemilink-logo-clean.png"
-        alt="Nemilink Technologies Pvt Ltd"
-        className="h-8.5 w-auto object-contain max-w-[210px]"
+        src="/engen-logo.png"
+        alt="Engen - Scaling Heights"
+        className="h-9 w-auto object-contain max-w-[195px]"
         loading="eager"
       />
     </div>

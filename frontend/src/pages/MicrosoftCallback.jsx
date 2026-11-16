@@ -69,14 +69,14 @@ export default function MicrosoftCallback() {
               Signing you in…
             </h1>
             <p className="mt-2 text-sm text-gray-500">
-              Verifying your company Microsoft account with Nemilink.
+              Verifying your company Microsoft account with Engen.
             </p>
           </>
         )}
       </section>
 
       <footer className="mx-auto w-full max-w-5xl text-center text-xs text-gray-400">
-        © {new Date().getFullYear()} Nemilink Technologies Pvt Ltd
+        © {new Date().getFullYear()} Engen
       </footer>
     </main>
   );
