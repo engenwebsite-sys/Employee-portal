@@ -5,9 +5,17 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.employee import Employee
-from app.models.leave import LeaveRequest, LeaveStatus, LeaveType
+from app.models.leave import LeaveAdjustment, LeaveRequest, LeaveStatus, LeaveType
 from app.models.user import Role, User
-from app.schemas.leave import LeaveApply, LeaveBalanceOut, LeaveRequestOut
+from app.schemas.leave import (
+    EmployeeLeaveDetailOut,
+    EmployeeLeaveSummaryOut,
+    LeaveAdjustmentCreate,
+    LeaveAdjustmentOut,
+    LeaveApply,
+    LeaveBalanceOut,
+    LeaveRequestOut,
+)
 
 # Company annual leave quotas per calendar year (Jan 1 to Dec 31):
 # 10 Casual Leaves + 2 Sick Leaves = 12 Total Paid Days.
@@ -30,17 +38,22 @@ def _require_employee(user: User) -> Employee:
 
 def compute_accrued_months(as_of: date, joining_date: date | None = None) -> int:
     """
-    Returns number of completed calendar months in the calendar year of as_of.
-    Each completed month grants 1 day of leave (up to 12 max per year).
-    Example: In Feb, January is completed -> 1 day accrued.
-             In March, Jan & Feb completed -> 2 days accrued.
+    Returns number of months accrued in the calendar year of as_of.
+    Each worked/active month grants 1 day of leave (up to 12 max per year).
+    Joining month is included:
+    Example: Joined in July (month 7), as_of November (month 11):
+             July, August, September, October, November = 5 months -> 5 days accrued.
     """
     current_year = as_of.year
     start_month = 1
-    if joining_date and joining_date.year == current_year:
-        start_month = joining_date.month
+    if joining_date:
+        if joining_date.year > current_year:
+            return 0
+        if joining_date.year == current_year:
+            start_month = joining_date.month
 
-    completed = as_of.month - start_month
+    # Inclusive of both joining month and current month
+    completed = as_of.month - start_month + 1
     if completed < 0:
         completed = 0
     return min(completed, 12)
@@ -138,6 +151,17 @@ def get_balances_for_employee(
     # Accrued months in target year as of check_date
     accrued_months = compute_accrued_months(check_date, joining_date)
 
+    # Fetch HR manual adjustments for this year
+    adj_rows = list(
+        db.scalars(
+            select(LeaveAdjustment).where(
+                LeaveAdjustment.employee_id == employee_id,
+                LeaveAdjustment.year == target_year,
+            )
+        ).all()
+    )
+    total_adjustments = sum(a.days for a in adj_rows)
+
     rows = list(
         db.scalars(
             select(LeaveRequest).where(
@@ -157,10 +181,10 @@ def get_balances_for_employee(
         elif row.status == LeaveStatus.PENDING.value:
             pending_by_type[row.leave_type] = pending_by_type.get(row.leave_type, 0) + row.days
 
-    # Paid leaves (Casual + Sick) share the monthly accrued pool
+    # Paid leaves (Casual + Sick) share the monthly accrued pool + adjustments
     total_paid_used = used_by_type.get("casual", 0) + used_by_type.get("sick", 0)
     total_paid_pending = pending_by_type.get("casual", 0) + pending_by_type.get("sick", 0)
-    available_accrued_pool = max(accrued_months - total_paid_used - total_paid_pending, 0)
+    available_accrued_pool = max(accrued_months + total_adjustments - total_paid_used - total_paid_pending, 0)
 
     balances: list[LeaveBalanceOut] = []
     for ltype, label, allocated in LEAVE_QUOTAS:
@@ -171,8 +195,10 @@ def get_balances_for_employee(
             # Unpaid leave has no cap
             available = None
             accrued = None
+            adj = 0
         else:
-            remaining_under_annual_cap = max(allocated - used - pending, 0)
+            adj = total_adjustments if ltype == "casual" else 0
+            remaining_under_annual_cap = max((allocated + adj) - used - pending, 0)
             available = min(available_accrued_pool, remaining_under_annual_cap)
             accrued = accrued_months
 
@@ -182,6 +208,7 @@ def get_balances_for_employee(
                 label=label,
                 allocated=allocated,
                 accrued=accrued,
+                adjustments=adj,
                 used=used,
                 pending=pending,
                 available=available,
@@ -327,3 +354,191 @@ def review_leave(
     req.reviewed_at = datetime.now(timezone.utc)
     db.commit()
     return db.scalar(_base_leave_query().where(LeaveRequest.id == req.id))
+
+
+def get_all_employees_leave_summary(
+    db: Session,
+    year: int | None = None,
+) -> list[EmployeeLeaveSummaryOut]:
+    target_year = year or date.today().year
+    today = date.today()
+
+    employees = list(
+        db.scalars(
+            select(Employee)
+            .where(Employee.is_active == True)
+            .options(joinedload(Employee.department), joinedload(Employee.user))
+            .order_by(Employee.name.asc())
+        ).all()
+    )
+
+    summaries: list[EmployeeLeaveSummaryOut] = []
+    for emp in employees:
+        balances = get_balances_for_employee(db, emp.id, year=target_year, as_of=today)
+        accrued = compute_accrued_months(today, emp.joining_date)
+
+        used = sum(b.used for b in balances if b.leave_type != "unpaid")
+        pending = sum(b.pending for b in balances if b.leave_type != "unpaid")
+        adjustments = sum(b.adjustments for b in balances)
+
+        cl_bal = next((b for b in balances if b.leave_type == "casual"), None)
+        available = (
+            cl_bal.available
+            if cl_bal and cl_bal.available is not None
+            else max(accrued + adjustments - used - pending, 0)
+        )
+
+        summaries.append(
+            EmployeeLeaveSummaryOut(
+                employee_id=emp.id,
+                employee_code=emp.employee_code,
+                name=emp.name,
+                email=emp.user.email if emp.user else emp.email,
+                department_name=emp.department.name if emp.department else "General",
+                designation=emp.designation,
+                avatar_url=emp.avatar_url,
+                joining_date=emp.joining_date,
+                accrued=accrued,
+                adjustments=adjustments,
+                used=used,
+                pending=pending,
+                available=available,
+            )
+        )
+    return summaries
+
+
+def get_employee_leave_detail(
+    db: Session,
+    employee_id: int,
+    year: int | None = None,
+) -> EmployeeLeaveDetailOut:
+    target_year = year or date.today().year
+    today = date.today()
+
+    emp = db.scalar(
+        select(Employee)
+        .where(Employee.id == employee_id)
+        .options(joinedload(Employee.department), joinedload(Employee.user))
+    )
+    if not emp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found.")
+
+    balances = get_balances_for_employee(db, emp.id, year=target_year, as_of=today)
+    accrued = compute_accrued_months(today, emp.joining_date)
+    used = sum(b.used for b in balances if b.leave_type != "unpaid")
+    pending = sum(b.pending for b in balances if b.leave_type != "unpaid")
+    adjustments_sum = sum(b.adjustments for b in balances)
+
+    cl_bal = next((b for b in balances if b.leave_type == "casual"), None)
+    available = (
+        cl_bal.available
+        if cl_bal and cl_bal.available is not None
+        else max(accrued + adjustments_sum - used - pending, 0)
+    )
+
+    summary = EmployeeLeaveSummaryOut(
+        employee_id=emp.id,
+        employee_code=emp.employee_code,
+        name=emp.name,
+        email=emp.user.email if emp.user else emp.email,
+        department_name=emp.department.name if emp.department else "General",
+        designation=emp.designation,
+        avatar_url=emp.avatar_url,
+        joining_date=emp.joining_date,
+        accrued=accrued,
+        adjustments=adjustments_sum,
+        used=used,
+        pending=pending,
+        available=available,
+    )
+
+    adj_records = list(
+        db.scalars(
+            select(LeaveAdjustment)
+            .where(
+                LeaveAdjustment.employee_id == employee_id,
+                LeaveAdjustment.year == target_year,
+            )
+            .options(joinedload(LeaveAdjustment.adjusted_by))
+            .order_by(LeaveAdjustment.created_at.desc())
+        ).all()
+    )
+    adj_outs: list[LeaveAdjustmentOut] = [
+        LeaveAdjustmentOut(
+            id=a.id,
+            employee_id=a.employee_id,
+            year=a.year,
+            leave_type=a.leave_type,
+            days=a.days,
+            reason=a.reason,
+            adjusted_by_id=a.adjusted_by_id,
+            adjusted_by_name=(
+                a.adjusted_by.name or a.adjusted_by.email
+                if a.adjusted_by
+                else None
+            ),
+            created_at=a.created_at,
+        )
+        for a in adj_records
+    ]
+
+    recent_leaves = list(
+        db.scalars(
+            _base_leave_query()
+            .where(LeaveRequest.employee_id == employee_id)
+            .order_by(LeaveRequest.start_date.desc())
+            .limit(20)
+        ).all()
+    )
+    leave_outs = [to_leave_out(lr, db=db) for lr in recent_leaves]
+
+    return EmployeeLeaveDetailOut(
+        summary=summary,
+        balances=balances,
+        adjustments=adj_outs,
+        recent_leaves=leave_outs,
+    )
+
+
+def create_leave_adjustment(
+    db: Session,
+    employee_id: int,
+    payload: LeaveAdjustmentCreate,
+    current_user: User,
+) -> LeaveAdjustmentOut:
+    if current_user.role != Role.HR.value and not current_user.is_super_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only HR Admin can adjust employee leave balances.",
+        )
+
+    emp = db.scalar(select(Employee).where(Employee.id == employee_id))
+    if not emp:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found.")
+
+    adj_year = payload.year or date.today().year
+
+    adjustment = LeaveAdjustment(
+        employee_id=employee_id,
+        year=adj_year,
+        leave_type=payload.leave_type,
+        days=payload.days,
+        reason=payload.reason.strip(),
+        adjusted_by_id=current_user.id,
+    )
+    db.add(adjustment)
+    db.commit()
+    db.refresh(adjustment)
+
+    return LeaveAdjustmentOut(
+        id=adjustment.id,
+        employee_id=adjustment.employee_id,
+        year=adjustment.year,
+        leave_type=adjustment.leave_type,
+        days=adjustment.days,
+        reason=adjustment.reason,
+        adjusted_by_id=current_user.id,
+        adjusted_by_name=current_user.name or current_user.email,
+        created_at=adjustment.created_at,
+    )

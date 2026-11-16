@@ -20,9 +20,54 @@ class LeaveBalanceOut(BaseModel):
     label: str
     allocated: Optional[int] = None  # 10 for CL, 2 for SL, None for unpaid
     accrued: Optional[int] = None    # Months completed / days accrued so far
+    adjustments: int = 0             # Extra leaves or deductions made by HR
     used: int
     pending: int
     available: Optional[int] = None  # Remaining available to apply
+
+
+class LeaveAdjustmentCreate(BaseModel):
+    days: int = Field(ge=-30, le=30, description="Positive for credit, negative for deduction")
+    leave_type: str = Field(default="casual", pattern="^(casual|sick|earned|general)$")
+    reason: str = Field(min_length=3, max_length=500)
+    year: Optional[int] = None
+
+
+class LeaveAdjustmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    employee_id: int
+    year: int
+    leave_type: str
+    days: int
+    reason: str
+    adjusted_by_id: Optional[int] = None
+    adjusted_by_name: Optional[str] = None
+    created_at: datetime
+
+
+class EmployeeLeaveSummaryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    employee_id: int
+    employee_code: str
+    name: str
+    email: str
+    department_name: Optional[str] = None
+    designation: Optional[str] = None
+    avatar_url: Optional[str] = None
+    joining_date: Optional[date] = None
+    accrued: int
+    adjustments: int
+    used: int
+    pending: int
+    available: int
+
+
+class EmployeeLeaveDetailOut(BaseModel):
+    summary: EmployeeLeaveSummaryOut
+    balances: list[LeaveBalanceOut]
+    adjustments: list[LeaveAdjustmentOut]
+    recent_leaves: list["LeaveRequestOut"]
 
 
 class LeaveRequestOut(BaseModel):

@@ -5,12 +5,24 @@ from app.api.deps import get_current_user, require_roles
 from app.db.session import get_db
 from app.models.leave import LeaveStatus
 from app.models.user import Role, User
-from app.schemas.leave import LeaveApply, LeaveBalanceOut, LeaveRequestOut, LeaveReview
+from app.schemas.leave import (
+    EmployeeLeaveDetailOut,
+    EmployeeLeaveSummaryOut,
+    LeaveAdjustmentCreate,
+    LeaveAdjustmentOut,
+    LeaveApply,
+    LeaveBalanceOut,
+    LeaveRequestOut,
+    LeaveReview,
+)
 from app.services.leave_service import (
     _require_employee,
     apply_leave,
     cancel_leave,
+    create_leave_adjustment,
+    get_all_employees_leave_summary,
     get_balances_for_employee,
+    get_employee_leave_detail,
     list_approvals,
     list_my_leaves,
     review_leave,
@@ -101,3 +113,36 @@ def api_reject_leave(
         comment=payload.comment if payload else None,
     )
     return to_leave_out(req, db=db)
+
+
+@router.get("/employees-summary", response_model=list[EmployeeLeaveSummaryOut])
+def api_employees_leave_summary(
+    year: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
+):
+    return get_all_employees_leave_summary(db, year=year)
+
+
+@router.get("/employees/{employee_id}/detail", response_model=EmployeeLeaveDetailOut)
+def api_employee_leave_detail(
+    employee_id: int,
+    year: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
+):
+    return get_employee_leave_detail(db, employee_id=employee_id, year=year)
+
+
+@router.post(
+    "/employees/{employee_id}/adjust",
+    response_model=LeaveAdjustmentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def api_adjust_leave_balance(
+    employee_id: int,
+    payload: LeaveAdjustmentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(Role.HR)),
+):
+    return create_leave_adjustment(db, employee_id=employee_id, payload=payload, current_user=current_user)

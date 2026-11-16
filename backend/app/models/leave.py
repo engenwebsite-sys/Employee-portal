@@ -54,3 +54,25 @@ class LeaveRequest(Base):
     employee: Mapped["Employee"] = relationship()  # noqa: F821
     reviewed_by: Mapped[Optional["User"]] = relationship()  # noqa: F821
 
+
+class LeaveAdjustment(Base):
+    __tablename__ = "leave_adjustments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    employee_id: Mapped[int] = mapped_column(
+        ForeignKey("employees.id", ondelete="CASCADE"), index=True
+    )
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    leave_type: Mapped[str] = mapped_column(String(20), default="casual")
+    days: Mapped[int] = mapped_column(Integer)  # e.g. +1, +2 for comp-off/credit; -1 for deduction
+    reason: Mapped[str] = mapped_column(String(500))
+    adjusted_by_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    employee: Mapped["Employee"] = relationship()  # noqa: F821
+    adjusted_by: Mapped[Optional["User"]] = relationship()  # noqa: F821
+

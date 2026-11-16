@@ -211,3 +211,23 @@ export async function uploadAvatar(file) {
 export async function deleteAvatar() {
   return api("/me/avatar", { method: "DELETE" });
 }
+
+/** Get all employees leave summary (HR / Manager view) */
+export async function getEmployeeLeaveSummaries(year) {
+  const query = year ? `?year=${year}` : "";
+  return api(`/leaves/employees-summary${query}`);
+}
+
+/** Get detailed leave & accrual info for an employee */
+export async function getEmployeeLeaveDetail(employeeId, year) {
+  const query = year ? `?year=${year}` : "";
+  return api(`/leaves/employees/${employeeId}/detail${query}`);
+}
+
+/** Adjust leave balance for an employee (HR only) */
+export async function adjustEmployeeLeave(employeeId, payload) {
+  return api(`/leaves/employees/${employeeId}/adjust`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}

@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../lib/api";
+import {
+  adjustEmployeeLeave,
+  api,
+  getAssetUrl,
+  getEmployeeLeaveDetail,
+  getEmployeeLeaveSummaries,
+} from "../lib/api";
 
 const STATUS_STYLES = {
   pending: "bg-amber-50 text-amber-700 border border-amber-200/60",
@@ -35,6 +41,20 @@ export default function Leaves() {
   const [myLeaves, setMyLeaves] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [approvalFilter, setApprovalFilter] = useState("pending");
+  const [employeeSummaries, setEmployeeSummaries] = useState([]);
+  const [empSearch, setEmpSearch] = useState("");
+  const [selectedEmpId, setSelectedEmpId] = useState(null);
+  const [empDetail, setEmpDetail] = useState(null);
+  const [loadingEmpDetail, setLoadingEmpDetail] = useState(false);
+  const [adjustForm, setAdjustForm] = useState({
+    type: "add",
+    days: 1,
+    leave_type: "casual",
+    reason: "",
+  });
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false);
+  const [adjustError, setAdjustError] = useState("");
+  const [adjustSuccess, setAdjustSuccess] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -57,6 +77,18 @@ export default function Leaves() {
     [form.start_date, form.end_date]
   );
 
+  const filteredEmployees = useMemo(() => {
+    if (!empSearch.trim()) return employeeSummaries;
+    const q = empSearch.toLowerCase();
+    return employeeSummaries.filter(
+      (e) =>
+        e.name.toLowerCase().includes(q) ||
+        e.employee_code.toLowerCase().includes(q) ||
+        (e.department_name && e.department_name.toLowerCase().includes(q)) ||
+        (e.email && e.email.toLowerCase().includes(q))
+    );
+  }, [employeeSummaries, empSearch]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -64,11 +96,13 @@ export default function Leaves() {
       if (canApprove) {
         const qs = approvalFilter ? `?status=${approvalFilter}` : "";
         requests.push(api(`/leaves/approvals${qs}`));
+        requests.push(getEmployeeLeaveSummaries());
       }
-      const [balData, myData, appData] = await Promise.all(requests);
+      const [balData, myData, appData, empData] = await Promise.all(requests);
       setBalances(balData);
       setMyLeaves(myData);
       if (canApprove && appData) setApprovals(appData);
+      if (canApprove && empData) setEmployeeSummaries(empData);
       setError("");
     } catch (err) {
       setError(err.message || "Failed to load leave records.");
@@ -76,6 +110,60 @@ export default function Leaves() {
       setLoading(false);
     }
   }, [canApprove, approvalFilter]);
+
+  async function openEmpModal(empId) {
+    setSelectedEmpId(empId);
+    setEmpDetail(null);
+    setLoadingEmpDetail(true);
+    setAdjustError("");
+    setAdjustSuccess("");
+    setAdjustForm({ type: "add", days: 1, leave_type: "casual", reason: "" });
+    try {
+      const data = await getEmployeeLeaveDetail(empId);
+      setEmpDetail(data);
+    } catch (err) {
+      setAdjustError(err.message || "Failed to load employee details.");
+    } finally {
+      setLoadingEmpDetail(false);
+    }
+  }
+
+  async function handleAdjustSubmit(e) {
+    e.preventDefault();
+    if (!selectedEmpId) return;
+    setAdjustSubmitting(true);
+    setAdjustError("");
+    setAdjustSuccess("");
+    try {
+      const numDays = Math.abs(parseInt(adjustForm.days, 10) || 1);
+      const finalDays = adjustForm.type === "deduct" ? -numDays : numDays;
+      await adjustEmployeeLeave(selectedEmpId, {
+        days: finalDays,
+        leave_type: adjustForm.leave_type,
+        reason: adjustForm.reason.trim(),
+      });
+      setAdjustSuccess(
+        `Successfully ${finalDays > 0 ? "added +" : "deducted "}${Math.abs(
+          finalDays
+        )} day(s) leave balance!`
+      );
+      setAdjustForm({ type: "add", days: 1, leave_type: "casual", reason: "" });
+      // Reload current modal detail and list summary
+      const [updatedDetail, updatedSummaries] = await Promise.all([
+        getEmployeeLeaveDetail(selectedEmpId),
+        getEmployeeLeaveSummaries(),
+      ]);
+      setEmpDetail(updatedDetail);
+      setEmployeeSummaries(updatedSummaries);
+      // Also refresh balances
+      const balData = await api("/leaves/balances");
+      setBalances(balData);
+    } catch (err) {
+      setAdjustError(err.message || "Failed to adjust leave balance.");
+    } finally {
+      setAdjustSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     loadData();
@@ -210,6 +298,19 @@ export default function Leaves() {
               Approvals ({approvals.length})
             </button>
           )}
+          {canApprove && (
+            <button
+              type="button"
+              onClick={() => setTab("employees")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                tab === "employees"
+                  ? "btn-brand-gradient shadow-xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              Employee Balances ({employeeSummaries.length})
+            </button>
+          )}
         </div>
 
         {tab === "approvals" && canApprove && (
@@ -223,6 +324,18 @@ export default function Leaves() {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+        )}
+
+        {tab === "employees" && canApprove && (
+          <div className="w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search by employee, code, dept..."
+              value={empSearch}
+              onChange={(e) => setEmpSearch(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs outline-none focus:border-slate-400"
+            />
+          </div>
         )}
       </div>
 
@@ -359,7 +472,8 @@ export default function Leaves() {
               </div>
             </>
           )
-        ) : approvals.length === 0 ? (
+        ) : tab === "approvals" ? (
+          approvals.length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-400">
             No team leave requests for this filter.
           </div>
@@ -531,6 +645,170 @@ export default function Leaves() {
               ))}
             </div>
           </>
+        )) : (
+          /* Employee Balances Tab */
+          filteredEmployees.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              No employee records found matching &quot;{empSearch}&quot;.
+            </div>
+          ) : (
+            <>
+              {/* Desktop Employee Balances Table */}
+              <div className="hidden sm:block overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-slate-100 bg-slate-50/70 text-[11px] font-semibold text-slate-500">
+                    <tr>
+                      <th className="px-3.5 py-2.5">Employee</th>
+                      <th className="px-3.5 py-2.5">Department</th>
+                      <th className="px-3.5 py-2.5">Joined Date</th>
+                      <th className="px-3.5 py-2.5 text-center">Accrued</th>
+                      <th className="px-3.5 py-2.5 text-center">Adjustments</th>
+                      <th className="px-3.5 py-2.5 text-center">Taken</th>
+                      <th className="px-3.5 py-2.5 text-center">Pending</th>
+                      <th className="px-3.5 py-2.5 text-center">Available Balance</th>
+                      <th className="px-3.5 py-2.5 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredEmployees.map((emp) => (
+                      <tr key={emp.employee_id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="px-3.5 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            {emp.avatar_url ? (
+                              <img
+                                src={getAssetUrl(emp.avatar_url)}
+                                alt=""
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
+                                className="h-7 w-7 rounded-full object-cover shrink-0 border border-slate-200"
+                              />
+                            ) : (
+                              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                                {emp.name.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-semibold text-slate-900">{emp.name}</div>
+                              <div className="text-[11px] text-slate-400">
+                                {emp.employee_code} {emp.designation ? `· ${emp.designation}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600 font-medium">
+                          {emp.department_name || "General"}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-slate-600 whitespace-nowrap">
+                          {emp.joining_date || "—"}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center font-bold text-slate-800">
+                          {emp.accrued} d
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          {emp.adjustments !== 0 ? (
+                            <span
+                              className={`inline-block px-1.5 py-0.5 rounded text-[10.5px] font-bold ${
+                                emp.adjustments > 0
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                                  : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                              }`}
+                            >
+                              {emp.adjustments > 0 ? `+${emp.adjustments}` : emp.adjustments} d
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">0 d</span>
+                          )}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center font-semibold text-slate-700">
+                          {emp.used} d
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center font-semibold text-amber-600">
+                          {emp.pending > 0 ? `${emp.pending} d` : "0"}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          <span
+                            className={`inline-block rounded-md px-2 py-0.5 text-xs font-black ${
+                              emp.available > 0
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                                : "bg-slate-100 text-slate-500 border border-slate-200/60"
+                            }`}
+                          >
+                            {emp.available} day{emp.available === 1 ? "" : "s"}
+                          </span>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => openEmpModal(emp.employee_id)}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-2xs transition-all"
+                          >
+                            View &amp; Adjust
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Employee Balances Cards */}
+              <div className="divide-y divide-slate-100 sm:hidden">
+                {filteredEmployees.map((emp) => (
+                  <div key={emp.employee_id} className="p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-slate-900">{emp.name}</div>
+                        <div className="text-[11px] text-slate-400">
+                          {emp.employee_code} · {emp.department_name || "General"}
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-md px-2 py-0.5 text-xs font-black ${
+                          emp.available > 0
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {emp.available} d left
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 text-center text-[10px] bg-slate-50/80 p-2 rounded-lg border border-slate-100">
+                      <div>
+                        <span className="text-slate-400 block">Accrued</span>
+                        <span className="font-bold text-slate-700">{emp.accrued} d</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Adjusted</span>
+                        <span className="font-bold text-slate-700">
+                          {emp.adjustments > 0 ? `+${emp.adjustments}` : emp.adjustments} d
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Taken</span>
+                        <span className="font-bold text-slate-700">{emp.used} d</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Pending</span>
+                        <span className="font-bold text-amber-600">{emp.pending} d</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        type="button"
+                        onClick={() => openEmpModal(emp.employee_id)}
+                        className="w-full text-center rounded-lg border border-slate-200 bg-white py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                      >
+                        View Details &amp; Adjust Leave
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )
         )}
       </div>
 
@@ -725,6 +1003,265 @@ export default function Leaves() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Detail & Adjust Modal */}
+      {selectedEmpId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4 backdrop-blur-2xs"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                {empDetail?.summary?.avatar_url ? (
+                  <img
+                    src={getAssetUrl(empDetail.summary.avatar_url)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                    className="h-10 w-10 rounded-full object-cover border border-slate-200"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-tr from-[#16192e] to-[#2a2f4c] text-xs font-black text-white">
+                    {empDetail?.summary?.name?.slice(0, 2).toUpperCase() || "EM"}
+                  </div>
+                )}
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900">
+                    {empDetail?.summary?.name || "Loading..."}
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {empDetail?.summary?.employee_code} · {empDetail?.summary?.department_name || "General"}
+                    {empDetail?.summary?.designation ? ` · ${empDetail.summary.designation}` : ""}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedEmpId(null);
+                  setEmpDetail(null);
+                }}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingEmpDetail || !empDetail ? (
+              <div className="p-8 text-center text-xs text-slate-400">Loading leave details...</div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                {/* Accrual Explanation Banner */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs text-blue-900">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <span>🗓️ Monthly Accrual Calculation ({new Date().getFullYear()})</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-blue-700 leading-relaxed">
+                    Joined on <strong>{empDetail.summary.joining_date || "Start of Year"}</strong>.
+                    Active period this calendar year: <strong>{empDetail.summary.accrued} month(s)</strong> worked
+                    → <strong>{empDetail.summary.accrued} day(s) accrued</strong> (1 day / month).
+                  </div>
+                </div>
+
+                {/* 4 Summary Stat Cards */}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-center">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Accrued</span>
+                    <div className="mt-0.5 text-lg font-extrabold text-slate-800">{empDetail.summary.accrued} d</div>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-center">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Adjustments</span>
+                    <div className="mt-0.5 text-lg font-extrabold text-slate-800">
+                      {empDetail.summary.adjustments > 0 ? `+${empDetail.summary.adjustments}` : empDetail.summary.adjustments} d
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-2.5 text-center">
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase">Taken (Used)</span>
+                    <div className="mt-0.5 text-lg font-extrabold text-slate-800">{empDetail.summary.used} d</div>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-2.5 text-center">
+                    <span className="text-[10px] font-semibold text-emerald-600 uppercase">Available</span>
+                    <div className="mt-0.5 text-lg font-extrabold text-emerald-700">{empDetail.summary.available} d</div>
+                  </div>
+                </div>
+
+                {/* Balances by Category */}
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Category Breakdown</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {empDetail.balances.map((b) => (
+                      <div key={b.leave_type} className="rounded-lg border border-slate-100 bg-white p-2.5 shadow-2xs">
+                        <div className="text-[11px] font-bold text-slate-700">{b.label}</div>
+                        <div className="mt-1 flex items-baseline justify-between text-xs">
+                          <span className="text-slate-400">Available:</span>
+                          <span className="font-extrabold text-[#1d2c55]">{b.available === null ? "∞" : `${b.available} d`}</span>
+                        </div>
+                        <div className="mt-0.5 flex items-baseline justify-between text-[10.5px] text-slate-500">
+                          <span>Used / Pending:</span>
+                          <span>{b.used} / {b.pending} d</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* HR Adjustment Form */}
+                {isHr && (
+                  <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-3.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-bold text-slate-900">
+                        ⚡ Quick Leave Adjustment (HR Admin Only)
+                      </h3>
+                      <span className="text-[10.5px] text-slate-400 font-medium">Comp-off, bonus, or deduction</span>
+                    </div>
+
+                    <form onSubmit={handleAdjustSubmit} className="space-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Action Type</label>
+                          <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setAdjustForm({ ...adjustForm, type: "add" })}
+                              className={`flex-1 py-1 text-center text-xs font-bold rounded-md transition-all ${
+                                adjustForm.type === "add"
+                                  ? "bg-emerald-600 text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              + Credit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAdjustForm({ ...adjustForm, type: "deduct" })}
+                              className={`flex-1 py-1 text-center text-xs font-bold rounded-md transition-all ${
+                                adjustForm.type === "deduct"
+                                  ? "bg-rose-600 text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              - Deduct
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Days</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            required
+                            value={adjustForm.days}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, days: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-slate-400"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">Category</label>
+                          <select
+                            value={adjustForm.leave_type}
+                            onChange={(e) => setAdjustForm({ ...adjustForm, leave_type: e.target.value })}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-slate-400"
+                          >
+                            <option value="casual">Casual Leave</option>
+                            <option value="sick">Sick Leave</option>
+                            <option value="earned">Earned Leave</option>
+                            <option value="general">General</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Reason / Audit Note <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          minLength={3}
+                          maxLength={500}
+                          placeholder="e.g. Comp-off for Sunday release, Opening balance adjustment..."
+                          value={adjustForm.reason}
+                          onChange={(e) => setAdjustForm({ ...adjustForm, reason: e.target.value })}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs outline-none focus:border-slate-400"
+                        />
+                      </div>
+
+                      {adjustError && (
+                        <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700">
+                          {adjustError}
+                        </div>
+                      )}
+
+                      {adjustSuccess && (
+                        <div className="rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs text-emerald-700 font-semibold">
+                          {adjustSuccess}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          disabled={adjustSubmitting}
+                          className="btn-brand-gradient rounded-xl px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:shadow-md disabled:opacity-50 transition-all"
+                        >
+                          {adjustSubmitting ? "Applying..." : "Apply Adjustment"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                {/* Adjustments History */}
+                <div>
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                    Adjustment Audit Log ({empDetail.adjustments.length})
+                  </h3>
+                  {empDetail.adjustments.length === 0 ? (
+                    <div className="rounded-lg border border-slate-100 bg-slate-50/50 p-3 text-center text-xs text-slate-400">
+                      No manual adjustments have been made for this employee.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-white max-h-48 overflow-y-auto">
+                      {empDetail.adjustments.map((adj) => (
+                        <div key={adj.id} className="p-2.5 text-xs flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`rounded px-1.5 py-0.2 text-[10px] font-bold ${
+                                  adj.days > 0
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                                    : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                                }`}
+                              >
+                                {adj.days > 0 ? `+${adj.days}` : adj.days} day(s)
+                              </span>
+                              <span className="font-semibold text-slate-800 capitalize">
+                                {adj.leave_type} Leave
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-slate-600 mt-0.5">{adj.reason}</div>
+                          </div>
+                          <div className="text-right text-[10px] text-slate-400">
+                            <div>{adj.adjusted_by_name ? `By ${adj.adjusted_by_name}` : "By HR Admin"}</div>
+                            <div>{adj.created_at ? new Date(adj.created_at).toLocaleDateString() : ""}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
