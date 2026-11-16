@@ -109,10 +109,11 @@ def microsoft_callback(
 
     user = auth_service.get_user_by_email(db, email)
     if user is None:
-        # Auto-provision new company users as employees; HR can promote or assign details later.
+        is_super = email.lower() in settings.super_admin_email_set
+        # Auto-provision new company users. Super admins start with HR role; others with Employee role.
         user = User(
             email=email,
-            role=Role.EMPLOYEE.value,
+            role=Role.HR.value if is_super else Role.EMPLOYEE.value,
             password_hash=hash_password(secrets.token_urlsafe(24)),
             is_active=True,
             must_change_password=False,

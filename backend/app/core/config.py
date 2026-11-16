@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     microsoft_client_secret: str = ""
     microsoft_redirect_uri: str = "http://localhost:5173/auth/microsoft/callback"
     allowed_login_domains: str = "nemilink.com,maargaai.com,engencbss.com"
-    super_admin_emails: str = "sivachandran@maargaai.com"
+    super_admin_emails: str = "sivachandran@maargaai.com,raja@engencbss.com"
 
     @property
     def cors_origin_list(self) -> list[str]:

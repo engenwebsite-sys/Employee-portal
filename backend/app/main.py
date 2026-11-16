@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 registers all models
@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
 from app.models.project import Project
+from app.models.user import User
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = BACKEND_DIR / "uploads"
@@ -49,6 +50,13 @@ async def lifespan(app: FastAPI):
                     Project(name="Internal Tool", code="INT", client="Internal", status="Active"),
                 ])
                 db.commit()
+
+            # Ensure super-admins default to HR view if currently employee
+            for admin_email in settings.super_admin_email_set:
+                u = db.query(User).filter(func.lower(User.email) == admin_email.lower()).first()
+                if u and u.role == "employee":
+                    u.role = "hr"
+                    db.commit()
     except Exception as e:
         print(f"Startup DB init warning: {e}")
     yield
