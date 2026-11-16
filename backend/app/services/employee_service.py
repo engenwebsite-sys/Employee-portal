@@ -35,6 +35,7 @@ def to_employee_out_dict(emp: Employee) -> dict:
         "probation_end_date": emp.probation_end_date,
         "phone": emp.phone,
         "emergency_contact": emp.emergency_contact,
+        "avatar_url": getattr(emp, "avatar_url", None),
         "created_at": emp.created_at,
     }
 

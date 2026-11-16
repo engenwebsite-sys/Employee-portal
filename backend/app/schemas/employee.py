@@ -19,6 +19,7 @@ class EmployeeBrief(BaseModel):
     employee_code: str
     name: str
     designation: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 class EmployeeOut(BaseModel):
@@ -37,6 +38,7 @@ class EmployeeOut(BaseModel):
     probation_end_date: date
     phone: Optional[str] = None
     emergency_contact: Optional[str] = None
+    avatar_url: Optional[str] = None
     created_at: datetime
 
 

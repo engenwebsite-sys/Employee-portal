@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
-import { api } from "../lib/api";
+import { api, getAssetUrl } from "../lib/api";
 
 const EMPTY_CREATE = {
   email: "",
@@ -306,10 +306,25 @@ export default function Employees() {
                         {emp.employee_code}
                       </td>
                       <td className="px-3.5 py-2.5">
-                        <div className="font-semibold text-slate-900">{emp.name}</div>
-                        <div className="text-[11px] text-slate-400">
-                          {emp.designation ? `${emp.designation} · ` : ""}
-                          {emp.email}
+                        <div className="flex items-center gap-2.5">
+                          {emp.avatar_url ? (
+                            <img
+                              src={getAssetUrl(emp.avatar_url)}
+                              alt={emp.name}
+                              className="h-7 w-7 rounded-full object-cover shrink-0 border border-slate-200"
+                            />
+                          ) : (
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                              {emp.name?.slice(0, 2)?.toUpperCase() || "EM"}
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-semibold text-slate-900">{emp.name}</div>
+                            <div className="text-[11px] text-slate-400">
+                              {emp.designation ? `${emp.designation} · ` : ""}
+                              {emp.email}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-3.5 py-2.5 text-slate-600">{emp.department?.name || "General"}</td>

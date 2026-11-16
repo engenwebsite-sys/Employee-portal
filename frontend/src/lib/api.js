@@ -116,3 +116,53 @@ export async function downloadFile(path, defaultFilename = "download.xlsx") {
   a.remove();
   window.URL.revokeObjectURL(url);
 }
+
+/** Formats local or relative upload path into full accessible URL */
+export function getAssetUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) {
+    return path;
+  }
+  const base = API_URL.replace(/\/api\/v1\/?$/, "");
+  return `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
+/** Upload avatar image file via multipart form-data */
+export async function uploadAvatar(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+  const token = tokenStore.getAccess();
+
+  let res = await fetch(`${API_URL}/me/avatar`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  if (res.status === 401 && tokenStore.getRefresh()) {
+    await refreshTokens();
+    const newToken = tokenStore.getAccess();
+    res = await fetch(`${API_URL}/me/avatar`, {
+      method: "POST",
+      headers: newToken ? { Authorization: `Bearer ${newToken}` } : {},
+      body: formData,
+    });
+  }
+
+  if (!res.ok) {
+    let detail;
+    try {
+      detail = (await res.json()).detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(friendlyMessage(detail, "Avatar upload failed"), res.status, detail);
+  }
+
+  return res.json();
+}
+
+/** Delete avatar */
+export async function deleteAvatar() {
+  return api("/me/avatar", { method: "DELETE" });
+}

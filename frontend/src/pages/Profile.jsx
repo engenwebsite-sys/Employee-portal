@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
-import { api } from "../lib/api";
+import { api, deleteAvatar, getAssetUrl, uploadAvatar } from "../lib/api";
+
+function initialsFor(nameOrEmail) {
+  const text = (nameOrEmail || "U").trim();
+  const parts = text.split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return text.slice(0, 2).toUpperCase();
+}
 
 function InfoCell({ label, value }) {
   return (
@@ -24,10 +31,48 @@ export default function Profile() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const fileInputRef = useRef(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState("");
+
   useEffect(() => {
     setPhone(emp?.phone || "");
     setEmergencyContact(emp?.emergency_contact || "");
   }, [emp?.phone, emp?.emergency_contact]);
+
+  async function handleAvatarSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError("Image size must be less than 5MB.");
+      return;
+    }
+    setUploadingAvatar(true);
+    setAvatarError("");
+    try {
+      await uploadAvatar(file);
+      await refreshUser();
+    } catch (err) {
+      setAvatarError(err.message || "Failed to upload photo.");
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteAvatar() {
+    if (!window.confirm("Remove profile photo?")) return;
+    setUploadingAvatar(true);
+    setAvatarError("");
+    try {
+      await deleteAvatar();
+      await refreshUser();
+    } catch (err) {
+      setAvatarError(err.message || "Failed to remove photo.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -58,26 +103,91 @@ export default function Profile() {
     >
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Workspace Account Details */}
-        <section className="card-pastel p-4 lg:col-span-2">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-            <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {emp?.name || user?.name || user?.email}
-              </h2>
-              <p className="text-xs text-slate-400">
-                {emp?.designation ? `${emp.designation} · ` : ""}
-                {user?.email}
-              </p>
+        <section className="card-pastel p-4 sm:p-5 lg:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3.5">
+              {/* Avatar with Camera Icon */}
+              <div className="relative group shrink-0">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleAvatarSelect}
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                />
+                {emp?.avatar_url ? (
+                  <img
+                    src={getAssetUrl(emp.avatar_url)}
+                    alt={emp.name || "Profile"}
+                    className="h-16 w-16 sm:h-20 sm:w-20 rounded-full object-cover border-2 border-white shadow-sm ring-2 ring-slate-100"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-gradient-to-tr from-[#16192e] to-[#2a2f4c] text-lg sm:text-xl font-black text-white shadow-sm ring-2 ring-slate-100">
+                    {initialsFor(emp?.name || user?.email)}
+                  </div>
+                )}
+
+                {/* Camera upload badge */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  title="Upload profile photo"
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white border border-slate-200 text-slate-700 shadow-md hover:bg-slate-50 transition-transform active:scale-95"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                </button>
+              </div>
+
+              <div>
+                <h2 className="text-base font-extrabold text-slate-900">
+                  {emp?.name || user?.name || user?.email}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {emp?.designation ? `${emp.designation} · ` : ""}
+                  {user?.email}
+                </p>
+
+                <div className="mt-1.5 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingAvatar}
+                    className="text-[11px] font-bold text-rose-600 hover:text-rose-700 underline"
+                  >
+                    {uploadingAvatar ? "Uploading..." : emp?.avatar_url ? "Change Photo" : "Upload Photo"}
+                  </button>
+                  {emp?.avatar_url && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteAvatar}
+                      disabled={uploadingAvatar}
+                      className="text-[11px] font-medium text-slate-400 hover:text-rose-600"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                {avatarError && (
+                  <p className="mt-1 text-[10.5px] font-medium text-rose-600">{avatarError}</p>
+                )}
+              </div>
             </div>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                user?.is_active
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                  : "bg-rose-50 text-rose-700 border border-rose-200/60"
-              }`}
-            >
-              {user?.is_active ? "Active" : "Disabled"}
-            </span>
+
+            <div className="flex sm:flex-col items-center sm:items-end gap-2">
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                  user?.is_active
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                    : "bg-rose-50 text-rose-700 border border-rose-200/60"
+                }`}
+              >
+                {user?.is_active ? "Active Member" : "Disabled"}
+              </span>
+            </div>
           </div>
 
           {emp ? (

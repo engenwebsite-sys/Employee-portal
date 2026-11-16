@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import Brand, { NemilinkEmblem } from "./Brand";
 import { useAuth } from "../context/AuthContext";
+import { getAssetUrl } from "../lib/api";
 
 const ROLE_LABEL = { employee: "Employee", manager: "Manager", hr: "HR Admin" };
 
@@ -278,9 +279,17 @@ export default function AppShell({ title, subtitle, actions, children }) {
                 to="/profile"
                 className="flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white px-2 py-1 no-underline transition hover:bg-slate-50"
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#ff3366] to-[#e11d48] text-[10px] font-bold text-white shadow-xs">
-                  {initials}
-                </span>
+                {user?.employee?.avatar_url ? (
+                  <img
+                    src={getAssetUrl(user.employee.avatar_url)}
+                    alt={displayName}
+                    className="h-6 w-6 rounded-md object-cover border border-slate-200/80"
+                  />
+                ) : (
+                  <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#ff3366] to-[#e11d48] text-[10px] font-bold text-white shadow-xs">
+                    {initials}
+                  </span>
+                )}
                 <span className="hidden text-xs font-semibold text-slate-700 sm:inline max-w-[120px] truncate">
                   {displayName}
                 </span>

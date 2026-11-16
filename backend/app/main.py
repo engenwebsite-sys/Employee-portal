@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401 registers all models
@@ -11,12 +15,24 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.project import Project
 
+UPLOAD_DIR = Path("uploads")
+AVATARS_DIR = UPLOAD_DIR / "avatars"
+AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
         # Auto-create any missing tables on startup
         Base.metadata.create_all(bind=engine)
+
+        # Auto-add avatar_url column to employees if missing (Postgres safe)
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE employees ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);"))
+        except Exception:
+            pass
+
         # Seed default projects if table is empty
         with Session(engine) as db:
             if not db.query(Project).first():
@@ -50,6 +66,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 class RootResponse(BaseModel):
