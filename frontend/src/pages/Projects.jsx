@@ -10,10 +10,34 @@ const STATUS_BADGE = {
   Archived: "bg-slate-100 text-slate-500 border-slate-200/60",
 };
 
+const DIVISION_BY_DOMAIN = {
+  "maargaai.com": "Maarga",
+  "nemilink.com": "Nemilink",
+};
+
+function DivisionSelect({ value, options, onChange }) {
+  return (
+    <label className="block font-semibold text-slate-700">
+      Division *
+      <select
+        required
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-normal outline-none focus:border-slate-400"
+      >
+        <option value="" disabled>Select a division</option>
+        {options.map((division) => <option key={division} value={division}>{division}</option>)}
+      </select>
+    </label>
+  );
+}
+
 export default function Projects() {
   const { user } = useAuth();
-  const canManage = user?.role === "hr" || user?.role === "manager";
   const isHR = user?.role === "hr";
+  const ownDivision = DIVISION_BY_DOMAIN[user?.email?.trim().toLowerCase().split("@").at(-1)];
+  const canManage = isHR || (user?.role === "manager" && Boolean(ownDivision));
+  const divisionOptions = isHR ? Object.values(DIVISION_BY_DOMAIN) : [ownDivision];
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +56,13 @@ export default function Projects() {
     client: "",
     description: "",
     status: "Active",
+    division: "",
   });
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api("/projects");
+      const data = await api(isHR ? "/projects?manage=true" : "/projects", { cache: "no-store" });
       setProjects(data);
       setError("");
     } catch (err) {
@@ -45,7 +70,7 @@ export default function Projects() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isHR]);
 
   useEffect(() => {
     loadProjects();
@@ -81,6 +106,7 @@ export default function Projects() {
       client: "",
       description: "",
       status: "Active",
+      division: isHR ? "" : ownDivision,
     });
     setModalError("");
     setShowAddModal(true);
@@ -94,6 +120,7 @@ export default function Projects() {
       client: proj.client || "",
       description: proj.description || "",
       status: proj.status || "Active",
+      division: proj.division || "",
     });
     setModalError("");
   }
@@ -111,6 +138,7 @@ export default function Projects() {
           client: formData.client.trim() || null,
           description: formData.description.trim() || null,
           status: formData.status,
+          division: formData.division,
         },
       });
       setShowAddModal(false);
@@ -136,6 +164,7 @@ export default function Projects() {
           client: formData.client.trim() || null,
           description: formData.description.trim() || null,
           status: formData.status,
+          division: formData.division,
         },
       });
       setEditingProject(null);
@@ -256,6 +285,7 @@ export default function Projects() {
                     <th className="px-3.5 py-2.5">Project Name</th>
                     <th className="px-3.5 py-2.5">Code</th>
                     <th className="px-3.5 py-2.5">Client</th>
+                    <th className="px-3.5 py-2.5">Division</th>
                     <th className="px-3.5 py-2.5">Status</th>
                     <th className="px-3.5 py-2.5">Description</th>
                     {canManage && <th className="px-3.5 py-2.5 text-right">Actions</th>}
@@ -275,6 +305,7 @@ export default function Projects() {
                         )}
                       </td>
                       <td className="px-3.5 py-2.5 text-slate-700">{proj.client || "—"}</td>
+                      <td className="px-3.5 py-2.5 text-slate-700">{proj.division || "Unassigned"}</td>
                       <td className="px-3.5 py-2.5">
                         <span
                           className={`inline-block rounded-md border px-2 py-0.5 text-[10px] font-bold ${
@@ -321,7 +352,7 @@ export default function Projects() {
       {/* Add Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-2xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
               <h2 className="text-sm font-bold text-slate-900">Add New Project</h2>
               <button
@@ -371,6 +402,12 @@ export default function Projects() {
                   </select>
                 </div>
               </div>
+
+              <DivisionSelect
+                value={formData.division}
+                options={divisionOptions}
+                onChange={(division) => setFormData({ ...formData, division })}
+              />
 
               <div>
                 <label className="mb-1 block font-semibold text-slate-700">Client / Product</label>
@@ -422,7 +459,7 @@ export default function Projects() {
       {/* Edit Project Modal */}
       {editingProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-2xs">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+          <div className="max-h-full w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
               <h2 className="text-sm font-bold text-slate-900">Edit Project: {editingProject.name}</h2>
               <button
@@ -470,6 +507,12 @@ export default function Projects() {
                   </select>
                 </div>
               </div>
+
+              <DivisionSelect
+                value={formData.division}
+                options={divisionOptions}
+                onChange={(division) => setFormData({ ...formData, division })}
+              />
 
               <div>
                 <label className="mb-1 block font-semibold text-slate-700">Client / Product</label>

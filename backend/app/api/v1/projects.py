@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_roles
 from app.db.session import get_db
-from app.models.project import Project
+from app.models.project import Project, ProjectDivision
 from app.models.user import Role, User
 from app.schemas.project import ProjectCreate, ProjectOut, ProjectUpdate
 
@@ -19,8 +19,11 @@ def list_projects(
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
+    manage: Annotated[bool, Query()] = False,
 ):
     stmt = select(Project).order_by(Project.name.asc())
+    if not (manage and _.role == Role.HR.value):
+        stmt = stmt.where(Project.visible_to_email(_.email))
     if status_filter:
         stmt = stmt.where(Project.status == status_filter)
     if search:
@@ -41,8 +44,13 @@ def create_project(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),  # Any logged-in user can quick-add a project
 ):
+    own_division = ProjectDivision.from_email(_.email)
+    division = payload.division or own_division
+    if division is None or (_.role != Role.HR.value and division != own_division):
+        raise HTTPException(status_code=403, detail="Cannot create a project for this division.")
+
     clean_name = payload.name.strip()
-    existing = db.scalar(select(Project).where(Project.name.ilike(clean_name)))
+    existing = db.scalar(select(Project).where(func.lower(Project.name) == clean_name.lower()))
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -64,6 +72,7 @@ def create_project(
         client=payload.client.strip() if payload.client else None,
         description=payload.description.strip() if payload.description else None,
         status=payload.status or "Active",
+        division=division,
     )
     db.add(proj)
     db.commit()
@@ -77,7 +86,9 @@ def get_project(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    proj = db.get(Project, project_id)
+    proj = db.scalar(
+        select(Project).where(Project.id == project_id, Project.visible_to_email(_.email))
+    )
     if not proj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
     return proj
@@ -90,14 +101,25 @@ def update_project(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(Role.HR, Role.MANAGER)),
 ):
-    proj = db.get(Project, project_id)
+    stmt = select(Project).where(Project.id == project_id)
+    if _.role != Role.HR.value:
+        stmt = stmt.where(Project.visible_to_email(_.email))
+    proj = db.scalar(stmt)
     if not proj:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
 
     data = payload.model_dump(exclude_unset=True)
+    if "division" in data:
+        division = data["division"]
+        if division is None:
+            raise HTTPException(status_code=422, detail="Select a project division.")
+        if _.role != Role.HR.value and division != proj.division:
+            raise HTTPException(status_code=403, detail="Cannot move a project to this division.")
+        proj.division = division
+
     if "name" in data and data["name"] is not None:
         clean = data["name"].strip()
-        dup = db.scalar(select(Project).where(Project.name.ilike(clean), Project.id != proj.id))
+        dup = db.scalar(select(Project).where(func.lower(Project.name) == clean.lower(), Project.id != proj.id))
         if dup:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

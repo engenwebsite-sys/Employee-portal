@@ -5,14 +5,6 @@ import { api, downloadFile } from "../lib/api";
 
 const STATUS_OPTIONS = ["In Progress", "Completed", "Blocked", "N/A"];
 const DAY_TYPE_OPTIONS = ["Working Day", "Week Off", "Holiday", "Leave", "Half Day"];
-const PROJECT_SUGGESTIONS = [
-  "Maarga AI",
-  "Maarga AI & Elder Care",
-  "MaargaAI/CRM-Tool",
-  "Nemilink Portal",
-  "Internal Tool",
-];
-
 const STATUS_STYLE = {
   Completed: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
   "In Progress": "bg-amber-50 text-amber-700 border border-amber-200/60",
@@ -70,6 +62,8 @@ export default function Timesheets() {
   const [teamEntries, setTeamEntries] = useState([]);
   const [teamFilterEmp, setTeamFilterEmp] = useState("");
   const [projects, setProjects] = useState([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+  const [projectLoadError, setProjectLoadError] = useState("");
   const [showInlineProject, setShowInlineProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [addingProject, setAddingProject] = useState(false);
@@ -111,23 +105,29 @@ export default function Timesheets() {
     }
   }, [month, canViewTeam, teamFilterEmp]);
 
-  const loadProjects = useCallback(async () => {
-    try {
-      const data = await api("/projects?status=Active");
-      setProjects(data);
-    } catch {
-      // fallback
-    }
-  }, []);
-
   useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+    if (!showModal) return;
 
-  const projectSuggestions = useMemo(() => {
-    const list = projects.map((p) => p.name);
-    return list.length > 0 ? list : PROJECT_SUGGESTIONS;
-  }, [projects]);
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    async function loadProjects() {
+      setLoadingProjects(true);
+      setProjectLoadError("");
+      setProjects([]);
+      try {
+        const data = await api("/projects?status=Active", { signal, cache: "no-store" });
+        if (!signal.aborted) setProjects(data);
+      } catch {
+        if (!signal.aborted) setProjectLoadError("Could not load projects. Reopen the form to retry.");
+      } finally {
+        if (!signal.aborted) setLoadingProjects(false);
+      }
+    }
+
+    loadProjects();
+    return () => controller.abort();
+  }, [showModal, user?.email]);
 
   async function handleQuickAddProject(e) {
     if (e) e.preventDefault();
@@ -708,7 +708,7 @@ export default function Timesheets() {
 
               <div>
                 <div className="mb-1 flex items-center justify-between">
-                  <label className="font-semibold text-slate-700">Project</label>
+                  <label htmlFor="timesheet-project" className="font-semibold text-slate-700">Project</label>
                   <button
                     type="button"
                     onClick={() => {
@@ -733,7 +733,7 @@ export default function Timesheets() {
                       />
                       <button
                         type="button"
-                        disabled={addingProject || !newProjectName.trim()}
+                        disabled={loadingProjects || addingProject || !newProjectName.trim()}
                         onClick={handleQuickAddProject}
                         className="btn-brand-gradient rounded-md px-2.5 py-1 text-[11px] font-bold text-white disabled:opacity-50"
                       >
@@ -746,19 +746,23 @@ export default function Timesheets() {
                   </div>
                 )}
 
-                <input
-                  type="text"
-                  list="project-suggestions"
-                  placeholder="e.g. Maarga AI"
+                <select
+                  id="timesheet-project"
                   value={form.project}
                   onChange={(e) => setForm({ ...form, project: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
-                />
-                <datalist id="project-suggestions">
-                  {projectSuggestions.map((p) => (
-                    <option key={p} value={p} />
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
+                >
+                  <option value="">{loadingProjects ? "Loading projects…" : "Select a project"}</option>
+                  {form.project && !projects.some((project) => project.name === form.project) && (
+                    <option value={form.project}>{form.project}</option>
+                  )}
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.name}>{project.name}</option>
                   ))}
-                </datalist>
+                </select>
+                {projectLoadError && (
+                  <p role="alert" className="mt-1 text-[10px] font-medium text-rose-700">{projectLoadError}</p>
+                )}
               </div>
 
               <div>

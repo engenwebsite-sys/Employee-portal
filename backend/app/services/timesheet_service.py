@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.employee import Employee
+from app.models.project import Project
 from app.models.timesheet import TimesheetEntry
 from app.models.user import Role, User
 from app.schemas.timesheet import TimesheetEntryOut, TimesheetEntryUpsert
@@ -87,13 +88,25 @@ def upsert_timesheet(db: Session, user: User, payload: TimesheetEntryUpsert) -> 
             TimesheetEntry.work_date == payload.work_date,
         )
     )
+    project_name = (payload.project or "").strip() or None
+    if project_name and (entry is None or project_name != entry.project):
+        project_id = db.scalar(
+            select(Project.id).where(
+                Project.name == project_name,
+                Project.status == "Active",
+                Project.visible_to_email(user.email),
+            )
+        )
+        if project_id is None:
+            raise HTTPException(status_code=422, detail="Select a project from your division.")
+
     if entry is None:
         entry = TimesheetEntry(employee_id=emp.id, work_date=payload.work_date)
         db.add(entry)
 
     entry.login_time = payload.login_time.strip() if payload.login_time else None
     entry.logout_time = payload.logout_time.strip() if payload.logout_time else None
-    entry.project = payload.project.strip() if payload.project else None
+    entry.project = project_name
     entry.task_description = payload.task_description.strip()
     entry.status = payload.status.strip() or "In Progress"
     entry.remarks = payload.remarks.strip() if payload.remarks else None
