@@ -308,11 +308,21 @@ export default function Employees() {
                       <td className="px-3.5 py-2.5">
                         <div className="flex items-center gap-2.5">
                           {emp.avatar_url ? (
-                            <img
-                              src={getAssetUrl(emp.avatar_url)}
-                              alt={emp.name}
-                              className="h-7 w-7 rounded-full object-cover shrink-0 border border-slate-200"
-                            />
+                            <>
+                              <img
+                                src={getAssetUrl(emp.avatar_url)}
+                                alt=""
+                                onError={(e) => {
+                                  e.currentTarget.classList.add("hidden");
+                                  const fb = e.currentTarget.parentElement?.querySelector(".avatar-fallback");
+                                  if (fb) fb.classList.remove("hidden");
+                                }}
+                                className="h-7 w-7 rounded-full object-cover shrink-0 border border-slate-200"
+                              />
+                              <div className="avatar-fallback hidden flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
+                                {emp.name?.slice(0, 2)?.toUpperCase() || "EM"}
+                              </div>
+                            </>
                           ) : (
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-700">
                               {emp.name?.slice(0, 2)?.toUpperCase() || "EM"}

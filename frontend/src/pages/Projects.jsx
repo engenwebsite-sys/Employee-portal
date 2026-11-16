@@ -518,3 +518,4 @@ export default function Projects() {
     </AppShell>
   );
 }
+

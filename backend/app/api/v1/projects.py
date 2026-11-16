@@ -140,3 +140,4 @@ def delete_project(
     db.delete(proj)
     db.commit()
     return None
+

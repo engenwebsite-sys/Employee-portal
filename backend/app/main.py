@@ -15,9 +15,14 @@ from app.db.base import Base
 from app.db.session import engine
 from app.models.project import Project
 
-UPLOAD_DIR = Path("uploads")
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+UPLOAD_DIR = BACKEND_DIR / "uploads"
 AVATARS_DIR = UPLOAD_DIR / "avatars"
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 
 @asynccontextmanager

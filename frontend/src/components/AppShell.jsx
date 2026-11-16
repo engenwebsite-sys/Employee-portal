@@ -128,6 +128,10 @@ export default function AppShell({ title, subtitle, actions, children }) {
   const navigate = useNavigate();
   const [switchingRole, setSwitchingRole] = useState(false);
   const [avatarBroken, setAvatarBroken] = useState(false);
+
+  useEffect(() => {
+    setAvatarBroken(false);
+  }, [user?.employee?.avatar_url]);
   const [expanded, setExpanded] = useState(() => {
     try {
       return localStorage.getItem("nemilink_rail_expanded") === "1";

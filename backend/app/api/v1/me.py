@@ -13,8 +13,14 @@ from app.services.employee_service import get_employee_or_404, to_employee_out_d
 
 router = APIRouter(tags=["Me"])
 
-AVATARS_DIR = Path("uploads") / "avatars"
+BACKEND_DIR = Path(__file__).resolve().parents[3]
+UPLOAD_DIR = BACKEND_DIR / "uploads"
+AVATARS_DIR = UPLOAD_DIR / "avatars"
 AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    Path("uploads/avatars").mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 MAX_AVATAR_BYTES = 5 * 1024 * 1024  # 5 MB
 
@@ -89,18 +95,29 @@ def upload_my_avatar(
     # Clean up previous avatar if stored in uploads
     if emp.avatar_url:
         old_filename = emp.avatar_url.split("/")[-1]
-        prev_file = AVATARS_DIR / old_filename
-        if prev_file.exists():
-            try:
-                prev_file.unlink()
-            except Exception:
-                pass
+        for d in [AVATARS_DIR, Path("uploads") / "avatars"]:
+            prev_file = d / old_filename
+            if prev_file.exists():
+                try:
+                    prev_file.unlink()
+                except Exception:
+                    pass
 
     unique_filename = f"avatar_emp_{emp.id}_{uuid.uuid4().hex[:8]}.{ext}"
     target_path = AVATARS_DIR / unique_filename
 
     with open(target_path, "wb") as f:
         f.write(content)
+
+    # Mirror to cwd/uploads if cwd differs from BACKEND_DIR
+    cwd_target = Path("uploads") / "avatars" / unique_filename
+    if cwd_target.resolve() != target_path.resolve():
+        try:
+            cwd_target.parent.mkdir(parents=True, exist_ok=True)
+            with open(cwd_target, "wb") as f:
+                f.write(content)
+        except Exception:
+            pass
 
     emp.avatar_url = f"/api/v1/uploads/avatars/{unique_filename}"
     db.commit()
@@ -124,12 +141,13 @@ def delete_my_avatar(
     emp = current_user.employee
     if emp.avatar_url:
         old_filename = emp.avatar_url.split("/")[-1]
-        prev_file = AVATARS_DIR / old_filename
-        if prev_file.exists():
-            try:
-                prev_file.unlink()
-            except Exception:
-                pass
+        for d in [AVATARS_DIR, Path("uploads") / "avatars"]:
+            prev_file = d / old_filename
+            if prev_file.exists():
+                try:
+                    prev_file.unlink()
+                except Exception:
+                    pass
 
     emp.avatar_url = None
     db.commit()
@@ -143,10 +161,14 @@ def delete_my_avatar(
 def serve_avatar(filename: str):
     target = AVATARS_DIR / filename
     if not target.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Avatar image file not found",
-        )
+        alt_target = Path("uploads") / "avatars" / filename
+        if alt_target.exists():
+            target = alt_target
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Avatar image file not found",
+            )
     ext = filename.split(".")[-1].lower()
     media_type = f"image/{ext}" if ext in {"png", "webp", "gif"} else "image/jpeg"
     return FileResponse(target, media_type=media_type)
