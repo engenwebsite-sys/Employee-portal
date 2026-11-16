@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
+import { useAuth } from "../context/AuthContext";
 import { api, getAssetUrl } from "../lib/api";
 
 const EMPTY_CREATE = {
@@ -43,6 +44,7 @@ function Modal({ title, onClose, children }) {
 }
 
 export default function Employees() {
+  const { user } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [allManagers, setAllManagers] = useState([]);
   const [departments, setDepartments] = useState([]);
