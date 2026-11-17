@@ -8,10 +8,9 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_active_user, get_current_user
 from app.core.config import settings
-from app.core.portal_date import portal_today
-from app.core.security import hash_password, verify_password
+from app.core.security import verify_password
 from app.db.session import get_db
-from app.models import Employee, Role, User
+from app.models import User
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -22,7 +21,6 @@ from app.schemas.auth import (
     TokenResponse,
 )
 from app.services import auth_service
-from app.services.employee_service import add_two_months
 from app.services.microsoft_auth import build_microsoft_auth_url, exchange_code_for_profile
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -161,7 +159,7 @@ def microsoft_callback(
     if not verifier or not secrets.compare_digest(body.state.encode(), expected_state.encode()):
         raise HTTPException(status_code=400, detail="Invalid Microsoft sign-in session. Start sign-in again.")
     response.delete_cookie(MICROSOFT_COOKIE, path=AUTH_COOKIE_PATH)
-    email, display_name = exchange_code_for_profile(body.code, verifier)
+    email, _ = exchange_code_for_profile(body.code, verifier)
     domain = email.split("@")[-1].lower()
 
     if settings.allowed_domain_set and domain not in settings.allowed_domain_set:
@@ -170,36 +168,19 @@ def microsoft_callback(
             detail="Only authorized company domains are allowed to sign in.",
         )
 
-    user = auth_service.get_user_by_email(db, email)
+    user = auth_service.get_user_by_email(db, email, lock=True)
     if user is None:
-        is_super = email.lower() in settings.super_admin_email_set
-        # Auto-provision new company users. Super admins start with HR role; others with Employee role.
-        user = User(
-            email=email,
-            role=Role.HR.value if is_super else Role.EMPLOYEE.value,
-            password_hash=hash_password(secrets.token_urlsafe(24)),
-            is_active=True,
-            must_change_password=False,
+        raise HTTPException(
+            status_code=403,
+            detail=f"Ask HR to verify your employee profile uses this Microsoft work email: {email}.",
         )
-        db.add(user)
-        db.flush()
-        today = portal_today()
-        db.add(
-            Employee(
-                user_id=user.id,
-                employee_code=f"EMP-{user.id:04d}",
-                name=display_name or email.split("@")[0].replace(".", " ").title(),
-                joining_date=today,
-                probation_end_date=add_two_months(today),
-            )
-        )
-        db.flush()
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your account is disabled. Please contact HR.",
         )
 
+    user.microsoft_verified = True
     user.must_change_password = False
     user.last_login_at = datetime.now(timezone.utc)
     return _auth_result(request, response, auth_service.issue_tokens(db, user))

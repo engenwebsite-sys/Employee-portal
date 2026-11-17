@@ -62,3 +62,7 @@ class Employee(Base):
     @property
     def is_active(self) -> bool:
         return self.user.is_active
+
+    @property
+    def microsoft_verified(self) -> bool | None:
+        return self.user.microsoft_verified

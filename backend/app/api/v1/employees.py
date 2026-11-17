@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_active_user, require_roles
+from app.api.v1.me import save_employee_avatar
 from app.db.session import get_db
 from app.models.employee import Department
 from app.models.user import Role, User
@@ -82,6 +83,18 @@ def api_create_employee(
     return to_employee_out_dict(emp)
 
 
+@router.post("/employees/{employee_id}/avatar", response_model=EmployeeOut)
+def upload_employee_avatar(
+    employee_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(Role.HR)),
+):
+    employee = get_employee_or_404(db, employee_id)
+    save_employee_avatar(db, employee, file)
+    return to_employee_out_dict(employee)
+
+
 @router.get("/employees/{employee_id}", response_model=EmployeeOut)
 def api_get_employee(
     employee_id: int,
@@ -134,8 +147,10 @@ def api_reset_employee_password(
             detail="User account not found for this employee.",
         )
 
-    temp_pw = secrets.token_urlsafe(24)
     lock_user(db, user)
+    if user.microsoft_verified is False:
+        raise HTTPException(status_code=409, detail="The employee must verify their Microsoft email first.")
+    temp_pw = secrets.token_urlsafe(24)
     set_password(db, user, temp_pw, temporary=True)
     db.commit()
 

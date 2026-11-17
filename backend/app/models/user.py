@@ -41,6 +41,8 @@ class User(Base):
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     session_version: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    # Existing accounts start with a null status until they sign in with Microsoft.
+    microsoft_verified: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

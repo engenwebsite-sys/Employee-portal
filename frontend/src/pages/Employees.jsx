@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
-import { api, getAssetUrl } from "../lib/api";
+import { api, getAssetUrl, uploadAvatar } from "../lib/api";
 import { portalDate } from "../lib/portalDate";
 
 const EMPTY_CREATE = {
   email: "",
   role: "employee",
-  temporary_password: "Welcome@123",
   employee_code: "",
   name: "",
   department_id: "",
@@ -18,6 +17,40 @@ const EMPTY_CREATE = {
   phone: "",
   emergency_contact: "",
 };
+
+function EmployeeStatus({ employee }) {
+  let label = "Active";
+  let color = "border-emerald-200/60 bg-emerald-50 text-emerald-700";
+  if (!employee.is_active) {
+    label = "Disabled";
+    color = "border-rose-200/60 bg-rose-50 text-rose-700";
+  } else if (employee.microsoft_verified === false) {
+    label = "Pending verification";
+    color = "border-amber-200/60 bg-amber-50 text-amber-800";
+  } else if (employee.microsoft_verified === true) {
+    label = "Verified";
+  }
+  return <span className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${color}`}>{label}</span>;
+}
+
+function PhotoField({ onSelect }) {
+  return (
+    <label className="block font-semibold text-slate-700 sm:col-span-2">
+      Profile photo (optional)
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="mt-1 block w-full rounded-lg border border-slate-200 p-2 font-normal"
+        onChange={(event) => {
+          const file = event.target.files?.[0] ?? null;
+          event.target.setCustomValidity(file?.size > 5 * 1024 * 1024 ? "Choose a photo up to 5 MB." : "");
+          onSelect(file);
+        }}
+      />
+      <span className="mt-1 block text-[11px] font-normal text-slate-500">JPG, PNG, WebP or GIF up to 5 MB.</span>
+    </label>
+  );
+}
 
 function Modal({ title, onClose, children }) {
   return (
@@ -58,6 +91,7 @@ export default function Employees() {
   const [createForm, setCreateForm] = useState(EMPTY_CREATE);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [photo, setPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
   const [modalError, setModalError] = useState("");
   const [showInlineDept, setShowInlineDept] = useState(false);
@@ -149,12 +183,14 @@ export default function Employees() {
   }, [loadDirectory, search, departmentId]);
 
   function openCreate() {
+    setPhoto(null);
     setCreateForm(EMPTY_CREATE);
     setModalError("");
     setShowCreate(true);
   }
 
   function openEdit(emp) {
+    setPhoto(null);
     setEditing(emp);
     setEditForm({
       employee_code: emp.employee_code || "",
@@ -181,7 +217,6 @@ export default function Employees() {
       const payload = {
         email: createForm.email.trim(),
         role: createForm.role,
-        temporary_password: createForm.temporary_password,
         employee_code: createForm.employee_code.trim(),
         name: createForm.name.trim(),
         department_id: createForm.department_id ? Number(createForm.department_id) : null,
@@ -192,7 +227,15 @@ export default function Employees() {
         phone: createForm.phone.trim() || null,
         emergency_contact: createForm.emergency_contact.trim() || null,
       };
-      await api("/employees", { method: "POST", body: payload });
+      const employee = await api("/employees", { method: "POST", body: payload });
+      if (photo) {
+        try {
+          await uploadAvatar(photo, employee.id);
+        } catch (err) {
+          openEdit(employee);
+          setModalError(`Employee created. Photo upload failed. ${err.message} Select a photo to retry.`);
+        }
+      }
       setShowCreate(false);
       await loadDirectory(search, departmentId);
     } catch (err) {
@@ -223,6 +266,15 @@ export default function Employees() {
         emergency_contact: editForm.emergency_contact.trim() || null,
       };
       await api(`/employees/${editing.id}`, { method: "PATCH", body: payload });
+      if (photo) {
+        try {
+          await uploadAvatar(photo, editing.id);
+        } catch (err) {
+          setModalError(`Profile changes saved. Photo upload failed. ${err.message}`);
+          await loadDirectory(search, departmentId);
+          return;
+        }
+      }
       setEditing(null);
       await loadDirectory(search, departmentId);
     } catch (err) {
@@ -355,15 +407,7 @@ export default function Employees() {
                         </span>
                       </td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
-                        <span
-                          className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                            emp.is_active
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                              : "bg-rose-50 text-rose-700 border border-rose-200/60"
-                          }`}
-                        >
-                          {emp.is_active ? "Active" : "Disabled"}
-                        </span>
+                        <EmployeeStatus employee={emp} />
                       </td>
                       <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5">
@@ -376,7 +420,7 @@ export default function Employees() {
                           </button>
                           <button
                             type="button"
-                            disabled={resettingId === emp.id}
+                            disabled={resettingId === emp.id || emp.microsoft_verified === false}
                             onClick={() => handleResetPassword(emp)}
                             className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-2 py-0.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
                             title="Reset password to a temporary password"
@@ -400,15 +444,7 @@ export default function Employees() {
                       <div className="font-bold text-slate-900 text-xs">{emp.name}</div>
                       <div className="text-[10px] text-slate-400 font-semibold">{emp.employee_code} · {emp.designation || "Member"}</div>
                     </div>
-                    <span
-                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                        emp.is_active
-                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                          : "bg-rose-50 text-rose-700 border border-rose-200/60"
-                      }`}
-                    >
-                      {emp.is_active ? "Active" : "Disabled"}
-                    </span>
+                    <EmployeeStatus employee={emp} />
                   </div>
 
                   <div className="text-[11px] text-slate-600 space-y-0.5">
@@ -421,7 +457,7 @@ export default function Employees() {
                   <div className="flex justify-end gap-2 pt-1">
                     <button
                       type="button"
-                      disabled={resettingId === emp.id}
+                      disabled={resettingId === emp.id || emp.microsoft_verified === false}
                       onClick={() => handleResetPassword(emp)}
                       className="rounded-md border border-amber-200/80 bg-amber-50/60 px-2.5 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
                     >
@@ -468,8 +504,10 @@ export default function Employees() {
               />
             </div>
             <div>
-              <label className="mb-1 block font-semibold text-slate-700">Work Email *</label>
+              <label htmlFor="new-employee-email" className="mb-1 block font-semibold text-slate-700">Microsoft Work Email *</label>
               <input
+                id="new-employee-email"
+                aria-describedby="new-employee-email-help"
                 type="email"
                 required
                 placeholder="user@nemilink.com"
@@ -477,6 +515,9 @@ export default function Employees() {
                 onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                 className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
+              <p id="new-employee-email-help" className="mt-1 text-[11px] text-slate-500">
+                Use the employee’s Microsoft sign-in email. Their first sign-in verifies this profile.
+              </p>
             </div>
             <div>
               <label className="mb-1 block font-semibold text-slate-700">Role *</label>
@@ -577,6 +618,8 @@ export default function Employees() {
                 className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
               />
             </div>
+
+            <PhotoField onSelect={setPhoto} />
 
             {modalError && (
               <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 sm:col-span-2">
@@ -779,6 +822,8 @@ export default function Employees() {
                 Active account (uncheck to disable access)
               </label>
             </div>
+
+            <PhotoField onSelect={setPhoto} />
 
             {modalError && (
               <div className="rounded-md bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 sm:col-span-2">

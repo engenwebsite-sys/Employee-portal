@@ -1,9 +1,10 @@
 import jwt
+from sqlalchemy import select
 from tests.conftest import PASSWORD, auth, login, make_user
 
 from app.core.config import settings
 from app.db.session import SessionLocal
-from app.models import User
+from app.models import Employee, User
 
 
 def test_login_success_and_email_is_case_insensitive(client, users):
@@ -85,6 +86,42 @@ def test_browser_session_refresh_and_logout_use_http_only_cookie(client, users):
 def test_microsoft_callback_requires_matching_state(client):
     result = client.post("/api/v1/auth/microsoft/callback", json={"code": "test", "state": "unexpected"})
     assert result.status_code == 400
+
+
+def test_microsoft_sign_in_verifies_existing_employee_without_creating_another(client, monkeypatch):
+    make_user("hr@nemilink.com", "hr")
+    hr = auth(login(client, "hr@nemilink.com").json())
+    email = "verified@nemilink.com"
+    created = client.post("/api/v1/employees", headers=hr, json={
+        "email": email, "employee_code": "NLT-024", "name": "Test Employee",
+        "joining_date": "2026-01-01",
+    })
+    assert created.status_code == 201
+    employee = created.json()
+    assert employee["microsoft_verified"] is False
+    reset = client.post(f"/api/v1/employees/{employee['id']}/reset-password", headers=hr)
+    assert reset.status_code == 409
+
+    def complete_sign_in(microsoft_email):
+        monkeypatch.setattr(
+            "app.api.v1.auth.exchange_code_for_profile",
+            lambda code, verifier: (microsoft_email, "Microsoft Name"),
+        )
+        client.cookies.set("nemilink_microsoft_flow", "test-state.test-verifier", path="/api/v1/auth")
+        return client.post("/api/v1/auth/microsoft/callback", json={"code": "test", "state": "test-state"})
+
+    denied = complete_sign_in("alias@nemilink.com")
+    assert denied.status_code == 403
+    assert "alias@nemilink.com" in denied.json()["detail"]
+    allowed = complete_sign_in(email)
+    assert allowed.status_code == 200
+    signed_in = allowed.json()["user"]["employee"]
+    assert signed_in["id"] == employee["id"]
+    assert signed_in["employee_code"] == "NLT-024"
+    assert signed_in["microsoft_verified"] is True
+    with SessionLocal() as db:
+        assert db.scalar(select(User).where(User.email == "alias@nemilink.com")) is None
+        assert db.scalars(select(Employee)).all()[0].id == employee["id"]
 
 
 def test_first_login_must_change_password(client, users):

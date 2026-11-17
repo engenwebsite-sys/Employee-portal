@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_active_user, get_current_user
 from app.db.session import get_db
+from app.models.employee import Employee
 from app.models.user import User
 from app.schemas.auth import UserOut
 from app.schemas.employee import SelfProfileUpdate
@@ -74,13 +75,19 @@ def upload_my_avatar(
             detail="No employee profile found for this account.",
         )
 
+    save_employee_avatar(db, current_user.employee, file)
+    db.refresh(current_user)
+    return _serialize_user(db, current_user)
+
+
+def save_employee_avatar(db: Session, emp: Employee, file: UploadFile) -> None:
     if file.content_type not in ALLOWED_AVATAR_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid image format. Allowed formats: JPG, PNG, WEBP, GIF.",
         )
 
-    content = file.file.read()
+    content = file.file.read(MAX_AVATAR_BYTES + 1)
     if len(content) > MAX_AVATAR_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -91,23 +98,22 @@ def upload_my_avatar(
     if ext not in {"jpg", "jpeg", "png", "webp", "gif"}:
         ext = "jpg"
 
-    emp = current_user.employee
-    # Clean up previous avatar if stored in uploads
-    if emp.avatar_url:
-        old_filename = emp.avatar_url.split("/")[-1]
-        for d in [AVATARS_DIR, Path("uploads") / "avatars"]:
-            prev_file = d / old_filename
-            if prev_file.exists():
-                try:
-                    prev_file.unlink()
-                except Exception:
-                    pass
+    old_filename = emp.avatar_url.rsplit("/", 1)[-1] if emp.avatar_url else None
 
     unique_filename = f"avatar_emp_{emp.id}_{uuid.uuid4().hex[:8]}.{ext}"
     target_path = AVATARS_DIR / unique_filename
 
-    with open(target_path, "wb") as f:
-        f.write(content)
+    try:
+        target_path.write_bytes(content)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="Could not store the profile photo.") from exc
+
+    emp.avatar_url = f"/api/v1/uploads/avatars/{unique_filename}"
+    try:
+        db.commit()
+    except Exception:
+        target_path.unlink(missing_ok=True)
+        raise
 
     # Mirror to cwd/uploads if cwd differs from BACKEND_DIR
     cwd_target = Path("uploads") / "avatars" / unique_filename
@@ -119,12 +125,12 @@ def upload_my_avatar(
         except Exception:
             pass
 
-    emp.avatar_url = f"/api/v1/uploads/avatars/{unique_filename}"
-    db.commit()
-    db.refresh(emp)
-    db.refresh(current_user)
-
-    return _serialize_user(db, current_user)
+    if old_filename:
+        for directory in {AVATARS_DIR, Path("uploads") / "avatars"}:
+            try:
+                (directory / old_filename).unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 @router.delete("/me/avatar", response_model=UserOut)

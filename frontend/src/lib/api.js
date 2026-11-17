@@ -180,12 +180,13 @@ export function getAssetUrl(path) {
 }
 
 /** Upload avatar image file via multipart form-data */
-export async function uploadAvatar(file) {
+export async function uploadAvatar(file, employeeId) {
+  const path = employeeId == null ? "/me/avatar" : `/employees/${employeeId}/avatar`;
   const formData = new FormData();
   formData.append("file", file);
   const token = tokenStore.getAccess();
 
-  let res = await fetch(`${API_URL}/me/avatar`, {
+  let res = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
@@ -194,7 +195,7 @@ export async function uploadAvatar(file) {
   if (res.status === 401 && tokenStore.hasSession()) {
     await refreshTokens();
     const newToken = tokenStore.getAccess();
-    res = await fetch(`${API_URL}/me/avatar`, {
+    res = await fetch(`${API_URL}${path}`, {
       method: "POST",
       headers: newToken ? { Authorization: `Bearer ${newToken}` } : {},
       body: formData,
@@ -202,6 +203,9 @@ export async function uploadAvatar(file) {
   }
 
   if (!res.ok) {
+    if (res.status === 413) {
+      throw new ApiError("This photo exceeds the server upload limit. Choose a smaller image.", 413);
+    }
     let detail;
     try {
       detail = (await res.json()).detail;

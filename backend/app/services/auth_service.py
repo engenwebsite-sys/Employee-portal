@@ -17,19 +17,20 @@ from app.models import RefreshToken, User
 from app.schemas.auth import TokenResponse, UserOut
 
 
-def get_user_by_email(db: Session, email: str) -> User | None:
-    return db.scalar(select(User).where(User.email == email.strip().lower()))
+def get_user_by_email(db: Session, email: str, *, lock: bool = False) -> User | None:
+    query = select(User).where(User.email == email.strip().lower())
+    return db.scalar(query.with_for_update(of=User) if lock else query)
 
 
 def authenticate(db: Session, email: str, password: str) -> User | None:
     """Returns the user only when email and password match."""
-    user = db.scalar(
-        select(User).where(User.email == email.strip().lower()).with_for_update(of=User)
-    )
+    user = get_user_by_email(db, email, lock=True)
     if user is None:
         verify_password(password, DUMMY_HASH)  # keep timing similar
         return None
     if not verify_password(password, user.password_hash):
+        return None
+    if user.microsoft_verified is False:
         return None
     return user
 

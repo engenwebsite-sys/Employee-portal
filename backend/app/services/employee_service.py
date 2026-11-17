@@ -1,13 +1,16 @@
 import calendar
+import secrets
 from datetime import date
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.security import hash_password
+from app.core.config import settings
 from app.models.employee import Department, Employee
 from app.models.user import User
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate, SelfProfileUpdate
+from app.services.auth_service import lock_user, set_password
 
 
 def add_two_months(d: date) -> date:
@@ -26,6 +29,7 @@ def to_employee_out_dict(emp: Employee) -> dict:
         "email": emp.user.email,
         "role": emp.user.role,
         "is_active": emp.user.is_active,
+        "microsoft_verified": emp.microsoft_verified,
         "employee_code": emp.employee_code,
         "name": emp.name,
         "department": emp.department,
@@ -116,8 +120,14 @@ def get_employee_or_404(db: Session, employee_id: int) -> Employee:
     return emp
 
 
+def _validate_microsoft_domain(email: str) -> None:
+    if settings.allowed_domain_set and email.rsplit("@", 1)[-1] not in settings.allowed_domain_set:
+        raise HTTPException(status_code=422, detail="Enter an approved company Microsoft sign-in email.")
+
+
 def create_employee(db: Session, payload: EmployeeCreate) -> Employee:
     email_lower = payload.email.strip().lower()
+    _validate_microsoft_domain(email_lower)
     if db.scalar(select(User).where(User.email == email_lower)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -135,10 +145,11 @@ def create_employee(db: Session, payload: EmployeeCreate) -> Employee:
 
     user = User(
         email=email_lower,
-        password_hash=hash_password(payload.temporary_password),
+        password_hash=hash_password(secrets.token_urlsafe(24)),
         role=payload.role,
         is_active=True,
         must_change_password=True,
+        microsoft_verified=False,
     )
     db.add(user)
     db.flush()
@@ -177,8 +188,9 @@ def update_employee(db: Session, employee_id: int, payload: EmployeeUpdate) -> E
             )
         emp.employee_code = code_clean
 
-    if "email" in data and data["email"] is not None:
+    if data.get("email") and data["email"].strip().lower() != emp.user.email:
         email_clean = data["email"].strip().lower()
+        lock_user(db, emp.user)
         existing_user = db.scalar(
             select(User).where(User.email == email_clean, User.id != emp.user_id)
         )
@@ -187,6 +199,10 @@ def update_employee(db: Session, employee_id: int, payload: EmployeeUpdate) -> E
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email address is already in use by another account.",
             )
+        if emp.user.microsoft_verified is not None:
+            _validate_microsoft_domain(email_clean)
+            set_password(db, emp.user, secrets.token_urlsafe(24), temporary=True)
+            emp.user.microsoft_verified = False
         emp.user.email = email_clean
 
     if "joining_date" in data and data["joining_date"] is not None:

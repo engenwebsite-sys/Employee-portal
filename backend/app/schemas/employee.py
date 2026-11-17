@@ -29,6 +29,7 @@ class EmployeeOut(BaseModel):
     email: str
     role: str
     is_active: bool
+    microsoft_verified: bool | None = None
     employee_code: str
     name: str
     department: Optional[DepartmentOut] = None
@@ -45,7 +46,6 @@ class EmployeeOut(BaseModel):
 class EmployeeCreate(BaseModel):
     email: EmailStr
     role: str = Field(default="employee", pattern="^(employee|manager|hr)$")
-    temporary_password: str = Field(default="Welcome@123", min_length=8)
     employee_code: str = Field(min_length=2, max_length=20)
     name: str = Field(min_length=2, max_length=150)
     department_id: Optional[int] = None

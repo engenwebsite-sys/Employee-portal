@@ -10,6 +10,7 @@ from app.models.employee import Employee
 from app.models.user import Role, User
 from app.api.v1.me import upload_my_avatar, delete_my_avatar
 from fastapi import UploadFile
+from tests.conftest import auth, login, make_user
 
 engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 Session = sessionmaker(bind=engine)
@@ -50,6 +51,32 @@ def test_avatar_sync():
     res_del = delete_my_avatar(db=db, current_user=user)
     assert res_del["employee"]["avatar_url"] is None
     print("Avatar delete passed!")
+
+
+def test_only_hr_can_upload_another_employees_photo(client):
+    for role in ("hr", "manager", "employee"):
+        make_user(f"{role}@nemilink.com", role)
+    hr = auth(login(client, "hr@nemilink.com").json())
+    profile = client.post("/api/v1/employees", headers=hr, json={
+        "email": "avatar-target@nemilink.com", "employee_code": "AVATAR-01",
+        "name": "Avatar Target", "joining_date": "2026-01-01",
+    })
+    assert profile.status_code == 201
+    endpoint = f"/api/v1/employees/{profile.json()['id']}/avatar"
+    image = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"A" * 500
+    files = {"file": ("profile.jpg", image, "image/jpeg")}
+    for role in ("manager", "employee"):
+        credentials = auth(login(client, f"{role}@nemilink.com").json())
+        assert client.post(endpoint, headers=credentials, files=files).status_code == 403
+    result = client.post(endpoint, headers=hr, files=files)
+    assert result.status_code == 200
+    avatar_url = result.json()["avatar_url"]
+    try:
+        assert client.get(avatar_url).content == image
+    finally:
+        from app.api.v1.me import AVATARS_DIR
+        (AVATARS_DIR / avatar_url.rsplit("/", 1)[-1]).unlink(missing_ok=True)
+
 
 if __name__ == "__main__":
     test_avatar_sync()
