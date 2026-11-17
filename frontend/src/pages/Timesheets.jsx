@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api, downloadFile } from "../lib/api";
@@ -72,6 +72,7 @@ export default function Timesheets() {
   const [projectAddError, setProjectAddError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const recordsRequest = useRef(null);
 
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -87,25 +88,35 @@ export default function Timesheets() {
     day_type: "Working Day",
   });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async ({ showLoading = true } = {}) => {
+    recordsRequest.current?.abort();
+    const controller = new AbortController();
+    recordsRequest.current = controller;
+    const { signal } = controller;
+    setLoading(showLoading);
+    setError("");
     try {
-      const reqs = [api(`/timesheets/my?month=${month}`)];
+      const reqs = [api(`/timesheets/my?month=${month}`, { signal })];
       if (canViewTeam) {
         const qs = new URLSearchParams({ month });
         if (teamFilterEmp) qs.set("employee_id", teamFilterEmp);
-        reqs.push(api(`/timesheets/team?${qs.toString()}`));
+        reqs.push(api(`/timesheets/team?${qs.toString()}`, { signal }));
       }
       const [myData, teamData] = await Promise.all(reqs);
+      if (signal.aborted) return;
       setMyEntries(myData);
       if (canViewTeam && teamData) setTeamEntries(teamData);
-      setError("");
     } catch (err) {
-      setError(err.message || "Failed to load timesheets.");
+      if (!signal.aborted) setError(err.message || "Failed to load timesheets.");
     } finally {
-      setLoading(false);
+      if (!signal.aborted) setLoading(false);
     }
   }, [month, canViewTeam, teamFilterEmp]);
+
+  useEffect(() => {
+    loadData();
+    return () => recordsRequest.current?.abort();
+  }, [loadData]);
 
   useEffect(() => {
     if (!showModal) return;
@@ -198,21 +209,33 @@ export default function Timesheets() {
     setSaving(true);
     setModalError("");
     try {
-      await api("/timesheets", {
+      const saved = await api("/timesheets", {
         method: "POST",
         body: {
           work_date: form.work_date,
           login_time: form.login_time || null,
           logout_time: form.logout_time || null,
           project: form.project.trim() || null,
-          task_description: form.task_description.trim() || null,
+          task_description: form.task_description.trim(),
           status: form.status,
           remarks: form.remarks.trim() || null,
           day_type: form.day_type,
         },
       });
+      const savedMonth = saved.work_date.slice(0, 7);
+      recordsRequest.current?.abort();
+      setMyEntries((entries) => [
+        saved,
+        ...entries.filter((entry) => entry.id !== saved.id && entry.work_date.startsWith(savedMonth)),
+      ].sort((a, b) => b.work_date.localeCompare(a.work_date)));
+      setTab("my");
       setShowModal(false);
-      await loadData();
+      if (savedMonth === month) {
+        void loadData({ showLoading: false });
+      } else {
+        setTeamEntries([]);
+        setMonth(savedMonth);
+      }
     } catch (err) {
       setModalError(err.message || "Failed to save entry.");
     } finally {
@@ -315,7 +338,12 @@ export default function Timesheets() {
           <input
             type="month"
             value={month}
-            onChange={(e) => setMonth(e.target.value)}
+            onChange={(e) => {
+              setMyEntries([]);
+              setTeamEntries([]);
+              setMonth(e.target.value);
+              setLoading(true);
+            }}
             className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-slate-400"
           />
           <button
@@ -461,7 +489,7 @@ export default function Timesheets() {
 
       {/* Responsive Card/Table Wrapper */}
       <div className="card-pastel overflow-hidden">
-        {loading ? (
+        {loading && (tab === "team" || activeRows.length === 0) ? (
           <div className="p-8 text-center text-xs text-slate-400">Loading timesheet records...</div>
         ) : activeRows.length === 0 ? (
           <div className="p-10 sm:p-14 text-center bg-gradient-to-b from-white to-slate-50/50">
