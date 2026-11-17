@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_active_user, require_roles
 from app.db.session import get_db
 from app.models.project import Project, ProjectDivision
 from app.models.user import Role, User
@@ -18,7 +18,7 @@ def list_projects(
     status_filter: Optional[str] = Query(None, alias="status"),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_active_user),
     manage: Annotated[bool, Query()] = False,
 ):
     stmt = select(Project).order_by(Project.name.asc())
@@ -42,7 +42,7 @@ def list_projects(
 def create_project(
     payload: ProjectCreate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),  # Any logged-in user can quick-add a project
+    _: User = Depends(get_active_user),
 ):
     own_division = ProjectDivision.from_email(_.email)
     division = payload.division or own_division
@@ -84,7 +84,7 @@ def create_project(
 def get_project(
     project_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_active_user),
 ):
     proj = db.scalar(
         select(Project).where(Project.id == project_id, Project.visible_to_email(_.email))

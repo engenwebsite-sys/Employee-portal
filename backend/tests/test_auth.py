@@ -64,12 +64,39 @@ def test_logout_revokes_refresh_token(client, users):
     assert again.status_code == 401
 
 
+def test_browser_session_refresh_and_logout_use_http_only_cookie(client, users):
+    headers = {"X-Portal-Session": "browser"}
+    first = client.post("/api/v1/auth/login", headers=headers, json={
+        "email": "employee@x.com", "password": PASSWORD,
+    })
+    assert first.status_code == 200
+    assert "refresh_token" not in first.json()
+    assert "HttpOnly" in first.headers["set-cookie"]
+    original = client.cookies.get("nemilink_refresh")
+    assert client.post("/api/v1/auth/refresh").status_code == 401
+    rotated = client.post("/api/v1/auth/refresh", headers=headers)
+    assert rotated.status_code == 200
+    assert "refresh_token" not in rotated.json()
+    assert client.cookies.get("nemilink_refresh") != original
+    assert client.post("/api/v1/auth/logout", headers=headers).status_code == 204
+    assert client.post("/api/v1/auth/refresh", headers=headers).status_code == 401
+
+
+def test_microsoft_callback_requires_matching_state(client):
+    result = client.post("/api/v1/auth/microsoft/callback", json={"code": "test", "state": "unexpected"})
+    assert result.status_code == 400
+
+
 def test_first_login_must_change_password(client, users):
     tokens = login(client, "hr@x.com").json()
     assert tokens["user"]["must_change_password"] is True
     # blocked everywhere except /me and change-password
     blocked = client.get("/api/v1/dev/hr-only", headers=auth(tokens))
     assert blocked.status_code == 403 and blocked.json()["detail"] == "password_change_required"
+    for path in ("projects", "timesheets/my", "leaves/balances"):
+        response = client.get(f"/api/v1/{path}", headers=auth(tokens))
+        assert response.status_code == 403
+        assert response.json()["detail"] == "password_change_required"
     assert client.get("/api/v1/me", headers=auth(tokens)).status_code == 200
 
     done = client.post(
@@ -80,6 +107,7 @@ def test_first_login_must_change_password(client, users):
     assert done.status_code == 200
     new_tokens = done.json()
     assert new_tokens["user"]["must_change_password"] is False
+    assert client.get("/api/v1/me", headers=auth(tokens)).status_code == 401
     assert client.get("/api/v1/dev/hr-only", headers=auth(new_tokens)).status_code == 200
     # every older session was signed out, new password works, old one does not
     old_refresh = client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})

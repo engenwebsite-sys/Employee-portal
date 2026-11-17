@@ -7,11 +7,11 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   // Only "loading" if a saved session has to be checked with the server.
-  const [loading, setLoading] = useState(() => Boolean(tokenStore.getRefresh()));
+  const [loading, setLoading] = useState(() => tokenStore.hasSession());
 
   // Restore the session after a page refresh.
   useEffect(() => {
-    if (!tokenStore.getRefresh()) return;
+    if (!tokenStore.hasSession()) return;
     let active = true;
     api("/me")
       .then((me) => active && setUser(me))
@@ -39,11 +39,11 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
-  const loginWithMicrosoft = useCallback(async (code) => {
+  const loginWithMicrosoft = useCallback(async (code, state) => {
     const data = await api("/auth/microsoft/callback", {
       method: "POST",
       auth: false,
-      body: { code },
+      body: { code, state },
     });
     tokenStore.set(data);
     setUser(data.user);
@@ -51,9 +51,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    const refresh_token = tokenStore.getRefresh();
+    const refresh_token = tokenStore.getLegacyRefresh();
     try {
-      if (refresh_token) await api("/auth/logout", { method: "POST", auth: false, body: { refresh_token } });
+      await api("/auth/logout", {
+        method: "POST", auth: false, body: refresh_token ? { refresh_token } : undefined,
+      });
     } catch {
       /* signing out locally is enough if the server is unreachable */
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
+import { portalDate } from "../lib/portalDate";
 import {
   adjustEmployeeLeave,
   api,
@@ -67,7 +68,7 @@ export default function Leaves() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = portalDate();
   const [showApply, setShowApply] = useState(false);
   const [form, setForm] = useState({
     leave_type: "casual",
@@ -392,6 +393,11 @@ export default function Leaves() {
                         </td>
                         <td className="px-3.5 py-2.5 text-slate-600 max-w-xs">
                           <div>{req.reason}</div>
+                          {req.team_conflict_count > 0 && (
+                            <div className="mt-0.5 text-[10px] text-amber-700">
+                              Overlapping leave requests: {req.team_conflict_count}
+                            </div>
+                          )}
                           {req.review_comment && (
                             <div className="mt-0.5 text-[10px] text-slate-400">
                               Note: {req.review_comment}
@@ -458,6 +464,12 @@ export default function Leaves() {
                     <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/70 p-2 rounded-lg border border-slate-100">
                       {req.reason}
                     </p>
+
+                    {req.team_conflict_count > 0 && (
+                      <div className="text-[11px] text-amber-700">
+                        Overlapping leave requests: {req.team_conflict_count}
+                      </div>
+                    )}
 
                     {req.review_comment && (
                       <div className="text-[11px] text-slate-400 italic">
@@ -1202,8 +1214,6 @@ export default function Leaves() {
                           >
                             <option value="casual">Casual Leave</option>
                             <option value="sick">Sick Leave</option>
-                            <option value="earned">Earned Leave</option>
-                            <option value="general">General</option>
                           </select>
                         </div>
                       </div>

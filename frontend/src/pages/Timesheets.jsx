@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api, downloadFile } from "../lib/api";
+import { portalDate } from "../lib/portalDate";
 
 const STATUS_OPTIONS = ["In Progress", "Completed", "Blocked", "N/A"];
 const DAY_TYPE_OPTIONS = ["Working Day", "Week Off", "Holiday", "Leave", "Half Day"];
@@ -46,14 +47,15 @@ function computeHours(login, logout) {
 
 function csvEscape(val) {
   const s = String(val ?? "");
-  return `"${s.replace(/"/g, '""')}"`;
+  const text = typeof val === "string" && /^(?:\s*[=+@\-]|[\t\r\n])/.test(s) ? `'${s}` : s;
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
 export default function Timesheets() {
   const { user } = useAuth();
   const canViewTeam = user?.role === "manager" || user?.role === "hr";
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = portalDate();
   const currentMonth = today.slice(0, 7);
 
   const [tab, setTab] = useState("my");

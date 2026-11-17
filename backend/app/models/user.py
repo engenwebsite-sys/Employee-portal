@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     func,
     text,
@@ -39,6 +40,7 @@ class User(Base):
         Boolean, server_default=text("true")
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    session_version: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

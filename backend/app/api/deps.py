@@ -34,6 +34,8 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise _unauthorized("Account not found or disabled.")
+    if payload.get("session_version", 0) != user.session_version:
+        raise _unauthorized("Session expired. Please sign in again.")
     return user
 
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_active_user, require_roles
 from app.db.session import get_db
 from app.models.leave import LeaveStatus
 from app.models.user import Role, User
@@ -35,7 +35,7 @@ router = APIRouter(prefix="/leaves", tags=["Leaves"])
 @router.get("/balances", response_model=list[LeaveBalanceOut])
 def api_leave_balances(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     emp = _require_employee(current_user)
     return get_balances_for_employee(db, emp.id)
@@ -44,7 +44,7 @@ def api_leave_balances(
 @router.get("/my", response_model=list[LeaveRequestOut])
 def api_my_leaves(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     return [to_leave_out(r, db=db) for r in list_my_leaves(db, current_user)]
 
@@ -53,7 +53,7 @@ def api_my_leaves(
 def api_apply_leave(
     payload: LeaveApply,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     req = apply_leave(db, current_user, payload)
     return to_leave_out(req, db=db)
@@ -63,7 +63,7 @@ def api_apply_leave(
 def api_cancel_leave(
     leave_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     req = cancel_leave(db, current_user, leave_id)
     return to_leave_out(req, db=db)
@@ -76,7 +76,7 @@ def api_list_approvals(
     current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
 ):
     return [
-        to_leave_out(r, db=db)
+        to_leave_out(r, db=db, viewer=current_user)
         for r in list_approvals(db, current_user, status_filter=status_filter)
     ]
 
@@ -95,7 +95,7 @@ def api_approve_leave(
         LeaveStatus.APPROVED,
         comment=payload.comment if payload else None,
     )
-    return to_leave_out(req, db=db)
+    return to_leave_out(req, db=db, viewer=current_user)
 
 
 @router.post("/{leave_id}/reject", response_model=LeaveRequestOut)
@@ -112,7 +112,7 @@ def api_reject_leave(
         LeaveStatus.REJECTED,
         comment=payload.comment if payload else None,
     )
-    return to_leave_out(req, db=db)
+    return to_leave_out(req, db=db, viewer=current_user)
 
 
 @router.get("/employees-summary", response_model=list[EmployeeLeaveSummaryOut])
@@ -121,7 +121,7 @@ def api_employees_leave_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
 ):
-    return get_all_employees_leave_summary(db, year=year)
+    return get_all_employees_leave_summary(db, year=year, viewer=current_user)
 
 
 @router.get("/employees/{employee_id}/detail", response_model=EmployeeLeaveDetailOut)
@@ -131,7 +131,7 @@ def api_employee_leave_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(Role.MANAGER, Role.HR)),
 ):
-    return get_employee_leave_detail(db, employee_id=employee_id, year=year)
+    return get_employee_leave_detail(db, employee_id=employee_id, year=year, viewer=current_user)
 
 
 @router.post(

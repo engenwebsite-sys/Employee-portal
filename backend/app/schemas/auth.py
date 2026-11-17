@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+from app.core.security import MAX_PASSWORD_BYTES
 from app.schemas.employee import EmployeeOut
 
 
@@ -15,6 +17,7 @@ class RefreshRequest(BaseModel):
 
 class MicrosoftCallbackRequest(BaseModel):
     code: str = Field(min_length=1)
+    state: str = Field(min_length=1, max_length=128)
 
 
 class MicrosoftAuthUrlResponse(BaseModel):
@@ -28,6 +31,15 @@ class SwitchRoleRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1)
     new_password: str = Field(min_length=8)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > MAX_PASSWORD_BYTES:
+            raise ValueError("New password must be at most 72 bytes.")
+        if not any(char.isalpha() for char in value) or not any(char.isdigit() for char in value):
+            raise ValueError("New password must include a letter and a number.")
+        return value
 
 
 class UserOut(BaseModel):
@@ -45,6 +57,7 @@ class UserOut(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
+    expires_in: int
     user: UserOut

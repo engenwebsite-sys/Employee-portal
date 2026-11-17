@@ -27,12 +27,13 @@ def verify_password(password: str, password_hash: str) -> bool:
 DUMMY_HASH = hash_password("not-a-real-password")
 
 
-def create_access_token(user_id: int, role: str) -> str:
+def create_access_token(user_id: int, role: str, session_version: int = 0) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "role": role,  # informational only: the server re-reads the role from the DB
         "type": "access",
+        "session_version": session_version,
         "iat": now,
         "exp": now + timedelta(minutes=settings.access_token_expire_minutes),
     }

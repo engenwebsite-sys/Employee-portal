@@ -23,7 +23,7 @@ engine = create_engine(
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(bind=engine)
 
-def run_tests():
+def test_projects_and_division_access():
     db = Session()
     user = User(id=1, email="hr@nemilink.com", role=Role.HR.value, is_active=True)
 
@@ -123,4 +123,4 @@ def assert_status(status, operation, *args):
         raise AssertionError(f"Expected {operation.__name__} to return status {status}")
 
 if __name__ == "__main__":
-    run_tests()
+    test_projects_and_division_access()

@@ -1,9 +1,10 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.portal_date import portal_today
 from app.models.employee import Employee
 from app.models.leave import LeaveAdjustment, LeaveRequest, LeaveStatus, LeaveType
 from app.models.user import Role, User
@@ -43,13 +44,8 @@ def count_working_days(start_date: date, end_date: date) -> int:
     """
     if end_date < start_date:
         return 0
-    count = 0
-    cur = start_date
-    while cur <= end_date:
-        if cur.weekday() < 5:  # 0=Monday ... 4=Friday
-            count += 1
-        cur += timedelta(days=1)
-    return count
+    weeks, remainder = divmod((end_date - start_date).days + 1, 7)
+    return weeks * 5 + sum((start_date.weekday() + offset) % 7 < 5 for offset in range(remainder))
 
 
 def compute_accrued_months(as_of: date, joining_date: date | None = None) -> int:
@@ -75,14 +71,14 @@ def compute_accrued_months(as_of: date, joining_date: date | None = None) -> int
     return min(completed, 12)
 
 
-def find_team_conflicts(db: Session, req: LeaveRequest) -> list[str]:
+def find_team_conflicts(db: Session, req: LeaveRequest, viewer: User | None = None) -> tuple[int, list[str]]:
     """
     Find other employees in the same department or under the same manager
     who have approved or pending leaves that overlap with this request.
     """
     emp = req.employee
     if not emp:
-        return []
+        return 0, []
 
     conds = []
     if emp.department_id:
@@ -91,7 +87,7 @@ def find_team_conflicts(db: Session, req: LeaveRequest) -> list[str]:
         conds.append(Employee.manager_id == emp.manager_id)
 
     if not conds:
-        return []
+        return 0, []
 
     query = (
         select(LeaveRequest)
@@ -107,20 +103,22 @@ def find_team_conflicts(db: Session, req: LeaveRequest) -> list[str]:
         )
     )
 
+    if viewer and viewer.role == Role.MANAGER.value:
+        query = query.where(Employee.manager_id == (viewer.employee.id if viewer.employee else -1))
     conflicts = list(db.scalars(query).all())
+    if viewer is None or viewer.role == Role.EMPLOYEE.value:
+        return len(conflicts), []
     results: list[str] = []
     for c in conflicts:
         status_label = "Approved" if c.status == LeaveStatus.APPROVED.value else "Pending"
         results.append(
             f"{c.employee.name} ({c.employee.employee_code}) · {c.start_date} to {c.end_date} [{status_label}]"
         )
-    return results
+    return len(conflicts), results
 
 
-def to_leave_out(req: LeaveRequest, db: Session | None = None) -> LeaveRequestOut:
-    conflicts: list[str] = []
-    if db:
-        conflicts = find_team_conflicts(db, req)
+def to_leave_out(req: LeaveRequest, db: Session | None = None, *, viewer: User | None = None) -> LeaveRequestOut:
+    conflict_count, conflicts = find_team_conflicts(db, req, viewer) if db is not None else (0, [])
 
     return LeaveRequestOut(
         id=req.id,
@@ -140,6 +138,7 @@ def to_leave_out(req: LeaveRequest, db: Session | None = None) -> LeaveRequestOu
         created_at=req.created_at,
         requires_hr_approval=(req.days >= 3),
         team_conflicts=conflicts,
+        team_conflict_count=conflict_count,
     )
 
 
@@ -156,7 +155,7 @@ def get_balances_for_employee(
     year: int | None = None,
     as_of: date | None = None,
 ) -> list[LeaveBalanceOut]:
-    check_date = as_of or date.today()
+    check_date = as_of or portal_today()
     target_year = year or check_date.year
     year_start = date(target_year, 1, 1)
     year_end = date(target_year, 12, 31)
@@ -165,7 +164,10 @@ def get_balances_for_employee(
     joining_date = emp.joining_date if emp else None
 
     # Accrued months in target year as of check_date
-    accrued_months = compute_accrued_months(check_date, joining_date)
+    accrued_months = (
+        compute_accrued_months(min(check_date, year_end), joining_date)
+        if check_date >= year_start else 0
+    )
 
     # Fetch HR manual adjustments for this year
     adj_rows = list(
@@ -176,13 +178,18 @@ def get_balances_for_employee(
             )
         ).all()
     )
-    total_adjustments = sum(a.days for a in adj_rows)
+    adjustments_by_type = {"casual": 0, "sick": 0}
+    for adjustment in adj_rows:
+        # Historical general and earned adjustments previously counted toward casual leave.
+        leave_type = "sick" if adjustment.leave_type == "sick" else "casual"
+        adjustments_by_type[leave_type] += adjustment.days
+    total_adjustments = sum(adjustments_by_type.values())
 
     rows = list(
         db.scalars(
             select(LeaveRequest).where(
                 LeaveRequest.employee_id == employee_id,
-                LeaveRequest.start_date >= year_start,
+                LeaveRequest.end_date >= year_start,
                 LeaveRequest.start_date <= year_end,
                 LeaveRequest.status.in_([LeaveStatus.APPROVED.value, LeaveStatus.PENDING.value]),
             )
@@ -192,10 +199,13 @@ def get_balances_for_employee(
     used_by_type: dict[str, int] = {}
     pending_by_type: dict[str, int] = {}
     for row in rows:
+        days = row.days
+        if row.start_date.year != row.end_date.year:
+            days = count_working_days(max(row.start_date, year_start), min(row.end_date, year_end))
         if row.status == LeaveStatus.APPROVED.value:
-            used_by_type[row.leave_type] = used_by_type.get(row.leave_type, 0) + row.days
+            used_by_type[row.leave_type] = used_by_type.get(row.leave_type, 0) + days
         elif row.status == LeaveStatus.PENDING.value:
-            pending_by_type[row.leave_type] = pending_by_type.get(row.leave_type, 0) + row.days
+            pending_by_type[row.leave_type] = pending_by_type.get(row.leave_type, 0) + days
 
     # Paid leaves (Casual + Sick) share the monthly accrued pool + adjustments
     total_paid_used = used_by_type.get("casual", 0) + used_by_type.get("sick", 0)
@@ -213,7 +223,7 @@ def get_balances_for_employee(
             accrued = None
             adj = 0
         else:
-            adj = total_adjustments if ltype == "casual" else 0
+            adj = adjustments_by_type[ltype]
             remaining_under_annual_cap = max((allocated + adj) - used - pending, 0)
             available = min(available_accrued_pool, remaining_under_annual_cap)
             accrued = accrued_months
@@ -259,6 +269,8 @@ def apply_leave(db: Session, user: User, payload: LeaveApply) -> LeaveRequest:
             detail="The selected date range falls entirely on weekends (Sat/Sun). Leave is only required for working days (Mon-Fri).",
         )
 
+    db.scalar(select(Employee.id).where(Employee.id == emp.id).with_for_update())
+
     # Check overlapping pending/approved requests for the same employee
     overlap = db.scalar(
         select(LeaveRequest).where(
@@ -275,22 +287,19 @@ def apply_leave(db: Session, user: User, payload: LeaveApply) -> LeaveRequest:
         )
 
     # Check balance based on accrual up to the requested leave date
-    balances = {
-        b.leave_type: b
-        for b in get_balances_for_employee(
-            db,
-            emp.id,
-            year=payload.start_date.year,
-            as_of=payload.start_date,
-        )
-    }
-    bal = balances.get(payload.leave_type)
-    if bal and bal.available is not None and days > bal.available:
-        accrued_info = f" (Accrued so far: {bal.accrued} day(s), available: {bal.available} day(s))."
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Insufficient {bal.label} balance{accrued_info}",
-        )
+    for year in range(payload.start_date.year, payload.end_date.year + 1):
+        period_start = max(payload.start_date, date(year, 1, 1))
+        period_end = min(payload.end_date, date(year, 12, 31))
+        period_days = count_working_days(period_start, period_end)
+        if not period_days:
+            continue
+        balances = get_balances_for_employee(db, emp.id, year=year, as_of=period_start)
+        balance = next((b for b in balances if b.leave_type == payload.leave_type), None)
+        if balance and balance.available is not None and period_days > balance.available:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient {balance.label} balance for {year}. Available: {balance.available} day(s).",
+            )
 
     req = LeaveRequest(
         employee_id=emp.id,
@@ -308,7 +317,7 @@ def apply_leave(db: Session, user: User, payload: LeaveApply) -> LeaveRequest:
 
 def cancel_leave(db: Session, user: User, leave_id: int) -> LeaveRequest:
     emp = _require_employee(user)
-    req = db.scalar(_base_leave_query().where(LeaveRequest.id == leave_id))
+    req = db.scalar(select(LeaveRequest).where(LeaveRequest.id == leave_id).with_for_update())
     if not req:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found.")
     if req.employee_id != emp.id:
@@ -343,7 +352,7 @@ def review_leave(
     new_status: LeaveStatus,
     comment: str | None = None,
 ) -> LeaveRequest:
-    req = db.scalar(_base_leave_query().where(LeaveRequest.id == leave_id))
+    req = db.scalar(select(LeaveRequest).where(LeaveRequest.id == leave_id).with_for_update())
     if not req:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found.")
 
@@ -357,7 +366,7 @@ def review_leave(
     # Manager can only review direct reportees
     if user.role == Role.MANAGER.value:
         my_emp_id = user.employee.id if user.employee else None
-        if req.employee.manager_id != my_emp_id:
+        if my_emp_id is None or req.employee.manager_id != my_emp_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Managers can only review leave requests for their direct reportees.",
@@ -380,24 +389,27 @@ def review_leave(
 def get_all_employees_leave_summary(
     db: Session,
     year: int | None = None,
+    *,
+    viewer: User,
 ) -> list[EmployeeLeaveSummaryOut]:
-    target_year = year or date.today().year
-    today = date.today()
+    today = portal_today()
+    target_year = year or today.year
 
-    employees = list(
-        db.scalars(
-            select(Employee)
-            .join(Employee.user)
-            .where(User.is_active == True)
-            .options(joinedload(Employee.department), joinedload(Employee.user))
-            .order_by(Employee.name.asc())
-        ).all()
+    stmt = (
+        select(Employee)
+        .join(Employee.user)
+        .where(User.is_active.is_(True))
+        .options(joinedload(Employee.department), joinedload(Employee.user))
+        .order_by(Employee.name.asc())
     )
+    if viewer.role == Role.MANAGER.value:
+        stmt = stmt.where(Employee.manager_id == (viewer.employee.id if viewer.employee else -1))
+    employees = list(db.scalars(stmt).all())
 
     summaries: list[EmployeeLeaveSummaryOut] = []
     for emp in employees:
         balances = get_balances_for_employee(db, emp.id, year=target_year, as_of=today)
-        accrued = compute_accrued_months(today, emp.joining_date)
+        accrued = next(b.accrued for b in balances if b.leave_type == "casual") or 0
 
         used = sum(b.used for b in balances if b.leave_type != "unpaid")
         pending = sum(b.pending for b in balances if b.leave_type != "unpaid")
@@ -434,20 +446,25 @@ def get_employee_leave_detail(
     db: Session,
     employee_id: int,
     year: int | None = None,
+    *,
+    viewer: User,
 ) -> EmployeeLeaveDetailOut:
-    target_year = year or date.today().year
-    today = date.today()
+    today = portal_today()
+    target_year = year or today.year
 
     emp = db.scalar(
         select(Employee)
         .where(Employee.id == employee_id)
         .options(joinedload(Employee.department), joinedload(Employee.user))
     )
-    if not emp:
+    if not emp or (
+        viewer.role == Role.MANAGER.value
+        and (viewer.employee is None or emp.manager_id != viewer.employee.id)
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found.")
 
     balances = get_balances_for_employee(db, emp.id, year=target_year, as_of=today)
-    accrued = compute_accrued_months(today, emp.joining_date)
+    accrued = next(b.accrued for b in balances if b.leave_type == "casual") or 0
     used = sum(b.used for b in balances if b.leave_type != "unpaid")
     pending = sum(b.pending for b in balances if b.leave_type != "unpaid")
     adjustments_sum = sum(b.adjustments for b in balances)
@@ -513,7 +530,7 @@ def get_employee_leave_detail(
             .limit(20)
         ).all()
     )
-    leave_outs = [to_leave_out(lr, db=db) for lr in recent_leaves]
+    leave_outs = [to_leave_out(lr, db=db, viewer=viewer) for lr in recent_leaves]
 
     return EmployeeLeaveDetailOut(
         summary=summary,
@@ -535,11 +552,11 @@ def create_leave_adjustment(
             detail="Only HR Admin can adjust employee leave balances.",
         )
 
-    emp = db.scalar(select(Employee).where(Employee.id == employee_id))
+    emp = db.scalar(select(Employee).where(Employee.id == employee_id).with_for_update())
     if not emp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found.")
 
-    adj_year = payload.year or date.today().year
+    adj_year = payload.year or portal_today().year
 
     adjustment = LeaveAdjustment(
         employee_id=employee_id,

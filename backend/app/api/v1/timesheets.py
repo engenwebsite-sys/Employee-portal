@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_active_user, require_roles
 from app.db.session import get_db
+from app.models.employee import Employee
 from app.models.user import Role, User
 from app.schemas.timesheet import TimesheetEntryOut, TimesheetEntryUpsert
 from app.services.timesheet_export_service import generate_timesheet_excel
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/timesheets", tags=["Timesheets"])
 def api_my_timesheets(
     month: str | None = Query(default=None, description="YYYY-MM"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     return [to_timesheet_out(e) for e in list_my_timesheets(db, current_user, month=month)]
 
@@ -31,7 +32,7 @@ def api_my_timesheets(
 def api_upsert_timesheet(
     payload: TimesheetEntryUpsert,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     entry = upsert_timesheet(db, current_user, payload)
     return to_timesheet_out(entry)
@@ -41,7 +42,7 @@ def api_upsert_timesheet(
 def api_delete_timesheet(
     entry_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     delete_timesheet(db, current_user, entry_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -62,18 +63,26 @@ def api_team_timesheets(
 
 @router.get("/export-excel")
 def api_export_timesheet_excel(
-    month: str = Query(description="YYYY-MM"),
+    month: str = Query(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$", description="YYYY-MM"),
     employee_id: int | None = Query(default=None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
+    if month.startswith("0000-"):
+        raise HTTPException(status_code=422, detail="Invalid export year.")
     target_emp_id = current_user.employee.id if current_user.employee else None
-    if employee_id is not None:
+    if employee_id is not None and employee_id != target_emp_id:
         if current_user.role not in (Role.MANAGER.value, Role.HR.value):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Cannot export other employee timesheet.",
             )
+        employee = db.get(Employee, employee_id)
+        if employee is None or (
+            current_user.role == Role.MANAGER.value
+            and (target_emp_id is None or employee.manager_id != target_emp_id)
+        ):
+            raise HTTPException(status_code=404, detail="Employee not found.")
         target_emp_id = employee_id
 
     if not target_emp_id:

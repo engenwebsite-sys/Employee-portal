@@ -23,7 +23,9 @@ def get_user_by_email(db: Session, email: str) -> User | None:
 
 def authenticate(db: Session, email: str, password: str) -> User | None:
     """Returns the user only when email and password match."""
-    user = get_user_by_email(db, email)
+    user = db.scalar(
+        select(User).where(User.email == email.strip().lower()).with_for_update(of=User)
+    )
     if user is None:
         verify_password(password, DUMMY_HASH)  # keep timing similar
         return None
@@ -42,27 +44,40 @@ def issue_tokens(db: Session, user: User) -> TokenResponse:
             + timedelta(days=settings.refresh_token_expire_days),
         )
     )
-    db.commit()
-    return TokenResponse(
-        access_token=create_access_token(user.id, user.role),
+    tokens = TokenResponse(
+        access_token=create_access_token(user.id, user.role, user.session_version),
         refresh_token=raw_refresh,
         expires_in=settings.access_token_expire_minutes * 60,
         user=UserOut.model_validate(user),
     )
+    db.commit()
+    return tokens
 
 
 def rotate_refresh_token(db: Session, raw_token: str) -> TokenResponse | None:
     """One-time use: the old refresh token is revoked and a new pair is issued."""
-    row = db.scalar(
-        select(RefreshToken).where(RefreshToken.token_hash == hash_refresh_token(raw_token))
-    )
     now = datetime.now(timezone.utc)
-    if row is None or row.revoked_at is not None or row.expires_at <= now:
+    token_hash = hash_refresh_token(raw_token)
+    user = db.scalar(
+        select(User)
+        .join(RefreshToken, RefreshToken.user_id == User.id)
+        .where(RefreshToken.token_hash == token_hash, User.is_active.is_(True))
+        .with_for_update(of=User)
+    )
+    if user is None:
         return None
-    user = db.get(User, row.user_id)
-    if user is None or not user.is_active:
+    user_id = db.scalar(
+        update(RefreshToken)
+        .where(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > now,
+        )
+        .values(revoked_at=now)
+        .returning(RefreshToken.user_id)
+    )
+    if user_id is None:
         return None
-    row.revoked_at = now
     return issue_tokens(db, user)  # commits both changes together
 
 
@@ -86,8 +101,13 @@ def revoke_all_refresh_tokens(db: Session, user_id: int) -> None:
     )
 
 
-def set_password(db: Session, user: User, new_password: str) -> None:
+def lock_user(db: Session, user: User) -> None:
+    db.scalar(select(User.id).where(User.id == user.id).with_for_update())
+    db.refresh(user)
+
+
+def set_password(db: Session, user: User, new_password: str, *, temporary: bool = False) -> None:
     user.password_hash = hash_password(new_password)
-    user.must_change_password = False
+    user.must_change_password = temporary
+    user.session_version += 1
     revoke_all_refresh_tokens(db, user.id)  # signs out every other session
-    db.commit()

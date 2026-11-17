@@ -11,6 +11,7 @@ os.environ["DATABASE_URL"] = os.environ.get(
     "postgresql+psycopg://postgres:postgres@localhost:5432/nemilink_portal_test",
 )
 os.environ["ENVIRONMENT"] = "development"
+os.environ["JWT_SECRET_KEY"] = "test-only-secret-unused-outside-this-suite"
 
 import pytest
 from alembic import command

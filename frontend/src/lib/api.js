@@ -14,8 +14,10 @@ function send(path, { auth = true, body, headers, ...rest }) {
   const token = auth ? tokenStore.getAccess() : null;
   return fetch(`${API_URL}${path}`, {
     ...rest,
+    ...(path.startsWith("/auth/") ? { credentials: "include" } : {}),
     headers: {
       "Content-Type": "application/json",
+      ...(path.startsWith("/auth/") ? { "X-Portal-Session": "browser" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
@@ -26,19 +28,24 @@ function send(path, { auth = true, body, headers, ...rest }) {
 // If several requests hit an expired token together, only one refresh runs.
 let refreshing = null;
 
+async function rotateSession() {
+  const refresh_token = tokenStore.getLegacyRefresh();
+  const response = await send("/auth/refresh", {
+    method: "POST", auth: false, body: refresh_token ? { refresh_token } : undefined,
+  });
+  if (response.status === 401) {
+    tokenStore.clear();
+    window.dispatchEvent(new Event("auth:logout"));
+    throw new ApiError("Session expired. Please sign in again.", 401);
+  }
+  if (!response.ok) throw new ApiError("Could not refresh your session.", response.status);
+  tokenStore.set(await response.json());
+}
+
 function refreshTokens() {
-  refreshing ??= (async () => {
-    const refresh_token = tokenStore.getRefresh();
-    const response = refresh_token
-      ? await send("/auth/refresh", { method: "POST", auth: false, body: { refresh_token } })
-      : null;
-    if (!response?.ok) {
-      tokenStore.clear();
-      window.dispatchEvent(new Event("auth:logout"));
-      throw new ApiError("Session expired. Please sign in again.", 401);
-    }
-    tokenStore.set(await response.json());
-  })().finally(() => {
+  refreshing ??= (navigator.locks
+    ? navigator.locks.request("nemilink-session", rotateSession)
+    : rotateSession()).finally(() => {
     refreshing = null;
   });
   return refreshing;
@@ -56,7 +63,7 @@ function friendlyMessage(detail, fallback) {
 export async function api(path, options = {}) {
   let response = await send(path, options);
 
-  if (response.status === 401 && options.auth !== false && tokenStore.getRefresh()) {
+  if (response.status === 401 && options.auth !== false && tokenStore.hasSession()) {
     await refreshTokens();
     response = await send(path, options);
   }
@@ -81,7 +88,7 @@ export async function downloadFile(path, defaultFilename = "download.xlsx") {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
-  if (response.status === 401 && tokenStore.getRefresh()) {
+  if (response.status === 401 && tokenStore.hasSession()) {
     await refreshTokens();
     const newToken = tokenStore.getAccess();
     response = await fetch(`${API_URL}${path}`, {
@@ -184,7 +191,7 @@ export async function uploadAvatar(file) {
     body: formData,
   });
 
-  if (res.status === 401 && tokenStore.getRefresh()) {
+  if (res.status === 401 && tokenStore.hasSession()) {
     await refreshTokens();
     const newToken = tokenStore.getAccess();
     res = await fetch(`${API_URL}/me/avatar`, {
@@ -228,6 +235,6 @@ export async function getEmployeeLeaveDetail(employeeId, year) {
 export async function adjustEmployeeLeave(employeeId, payload) {
   return api(`/leaves/employees/${employeeId}/adjust`, {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: payload,
   });
 }

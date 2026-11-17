@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_roles
+from app.api.deps import get_active_user, require_roles
 from app.db.session import get_db
 from app.models.employee import Department
 from app.models.user import Role, User
@@ -28,7 +28,7 @@ router = APIRouter(tags=["Employees"])
 @router.get("/departments", response_model=list[DepartmentOut])
 def list_departments(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(get_active_user),
 ):
     return list(db.scalars(select(Department).order_by(Department.name.asc())).all())
 
@@ -112,7 +112,7 @@ def api_update_employee(
 
 import secrets
 from pydantic import BaseModel
-from app.core.security import hash_password
+from app.services.auth_service import lock_user, set_password
 
 class PasswordResetOut(BaseModel):
     message: str
@@ -134,11 +134,9 @@ def api_reset_employee_password(
             detail="User account not found for this employee.",
         )
 
-    rand_suffix = secrets.randbelow(9000) + 1000
-    temp_pw = f"Nemilink@{rand_suffix}"
-
-    user.password_hash = hash_password(temp_pw)
-    user.must_change_password = True
+    temp_pw = secrets.token_urlsafe(24)
+    lock_user(db, user)
+    set_password(db, user, temp_pw, temporary=True)
     db.commit()
 
     return PasswordResetOut(

@@ -43,7 +43,7 @@ def test_avatar_sync():
     # Test upload
     res = upload_my_avatar(file=upload_file, db=db, current_user=user)
     assert res["employee"]["avatar_url"] is not None
-    assert res["employee"]["avatar_url"].startswith("/uploads/avatars/avatar_emp_1_")
+    assert res["employee"]["avatar_url"].startswith("/api/v1/uploads/avatars/avatar_emp_1_")
     print(f"Avatar upload passed: {res['employee']['avatar_url']}")
 
     # Test delete

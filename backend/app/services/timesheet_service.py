@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.portal_date import portal_today
 from app.models.employee import Employee
 from app.models.project import Project
 from app.models.timesheet import TimesheetEntry
@@ -33,7 +34,7 @@ def _month_bounds(month: str | None) -> tuple[date, date]:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Month must be in YYYY-MM format.",
             ) from exc
-    today = date.today()
+    today = portal_today()
     last_day = calendar.monthrange(today.year, today.month)[1]
     return date(today.year, today.month, 1), date(today.year, today.month, last_day)
 

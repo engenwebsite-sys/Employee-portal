@@ -43,3 +43,20 @@ Create a real account: `python -m app.scripts.seed_users --email you@company.com
     CREATE DATABASE nemilink_portal_test;      (once, in psql or pgAdmin)
     pip install -r requirements-dev.txt
     pytest
+
+## Deploy on the Employee Portal EC2 instance
+
+1. Push the release to `main` and check that the **Portal checks** workflow passes.
+2. Open EC2 Instance Connect as `ubuntu` and run:
+
+   ```bash
+   cd /var/www/Employee-portal
+   git pull --ff-only origin main
+   bash scripts/deploy-aws.sh
+   ```
+
+3. Confirm the database health response and `Live Employee Portal frontend verified.`
+4. Sign in with Microsoft and reload the page to confirm the session restores.
+   As HR, verify both divisions in Projects and test a leave adjustment on a test account.
+   As a manager, verify the leave reports and Excel exports for a direct report.
+   As employees from Maarga, Nemilink and Engen, check the Timesheet project dropdown and the Excel project list.

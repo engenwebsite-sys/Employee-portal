@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class LeaveApply(BaseModel):
-    leave_type: str = Field(pattern="^(casual|sick|earned|unpaid)$")
+    leave_type: str = Field(pattern="^(casual|sick|unpaid)$")
     start_date: date
     end_date: date
     reason: str = Field(min_length=3, max_length=500)
@@ -28,7 +28,7 @@ class LeaveBalanceOut(BaseModel):
 
 class LeaveAdjustmentCreate(BaseModel):
     days: int = Field(ge=-30, le=30, description="Positive for credit, negative for deduction")
-    leave_type: str = Field(default="casual", pattern="^(casual|sick|earned|general)$")
+    leave_type: str = Field(default="casual", pattern="^(casual|sick)$")
     reason: str = Field(min_length=3, max_length=500)
     year: Optional[int] = None
 
@@ -89,3 +89,4 @@ class LeaveRequestOut(BaseModel):
     created_at: datetime
     requires_hr_approval: bool = False
     team_conflicts: list[str] = []
+    team_conflict_count: int = 0

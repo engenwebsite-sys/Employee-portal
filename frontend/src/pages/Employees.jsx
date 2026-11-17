@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api, getAssetUrl } from "../lib/api";
+import { portalDate } from "../lib/portalDate";
 
 const EMPTY_CREATE = {
   email: "",
@@ -12,7 +13,7 @@ const EMPTY_CREATE = {
   department_id: "",
   designation: "",
   manager_id: "",
-  joining_date: new Date().toISOString().slice(0, 10),
+  joining_date: portalDate(),
   probation_end_date: "",
   phone: "",
   emergency_contact: "",

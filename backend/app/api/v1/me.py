@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_active_user, get_current_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.auth import UserOut
@@ -55,7 +55,7 @@ def read_me(
 def patch_me(
     payload: SelfProfileUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     update_self_profile(db, current_user, payload)
     db.refresh(current_user)
@@ -66,7 +66,7 @@ def patch_me(
 def upload_my_avatar(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     if not current_user.employee:
         raise HTTPException(
@@ -130,7 +130,7 @@ def upload_my_avatar(
 @router.delete("/me/avatar", response_model=UserOut)
 def delete_my_avatar(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_active_user),
 ):
     if not current_user.employee:
         raise HTTPException(

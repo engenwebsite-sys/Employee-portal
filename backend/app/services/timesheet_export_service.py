@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import openpyxl
+from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,11 @@ def parse_hhmm_time(val: Optional[str]) -> Optional[time]:
         return time(h, m)
     except Exception:
         return None
+
+
+def _write_text(cell, value: str | None) -> None:
+    cell.value = value or ""
+    cell.data_type = "s"
 
 
 def generate_timesheet_excel(
@@ -72,17 +78,28 @@ def generate_timesheet_excel(
     # 2. Update dynamic project suggestions in 'Lists' sheet if present
     if "Lists" in wb.sheetnames:
         ws_lists = wb["Lists"]
-        active_projects = list(
-            db.scalars(
-                select(Project.name).where(Project.status == "Active").order_by(Project.name.asc())
+        for cell in ws_lists["A"][1:]:
+            cell.value = None
+        active_projects = []
+        if emp:
+            active_projects = db.scalars(
+                select(Project.name)
+                .where(Project.status == "Active", Project.visible_to_email(emp.email))
+                .order_by(Project.name.asc())
             ).all()
-        )
+        for idx, name in enumerate(active_projects, start=2):
+            _write_text(ws_lists[f"A{idx}"], name)
+
+        project_validations = ws.data_validations.dataValidation
+        project_validations[:] = [
+            validation for validation in project_validations
+            if validation.formula1 != "ProjectList" and "E4" not in validation
+        ]
+        wb.defined_names["ProjectList"].attr_text = f"Lists!$A$2:$A${max(2, len(active_projects) + 1)}"
         if active_projects:
-            # Clear old rows in column A (from row 2 down) and write current active projects
-            for r in range(2, 50):
-                ws_lists[f"A{r}"].value = None
-            for idx, p_name in enumerate(active_projects, start=2):
-                ws_lists[f"A{idx}"].value = p_name
+            dropdown = DataValidation(type="list", formula1="ProjectList", allow_blank=True)
+            ws.add_data_validation(dropdown)
+            dropdown.add(f"E2:E{num_days + 1}")
 
     # 3. Populate rows 2 .. num_days + 1
     for day in range(1, num_days + 1):
@@ -106,13 +123,12 @@ def generate_timesheet_excel(
                 ws[f"D{row_idx}"] = t_logout
                 ws[f"D{row_idx}"].number_format = "hh:mm AM/PM"
 
-            ws[f"E{row_idx}"] = entry.project or ""
-            ws[f"F{row_idx}"] = entry.task_description or ""
-            ws[f"G{row_idx}"] = entry.status or ""
-            ws[f"H{row_idx}"] = entry.remarks or ""
-            ws[f"I{row_idx}"] = entry.day_type or (
-                "Week Off" if curr_date.weekday() in (5, 6) else "Working Day"
-            )
+            _write_text(ws[f"E{row_idx}"], entry.project)
+            _write_text(ws[f"F{row_idx}"], entry.task_description)
+            _write_text(ws[f"G{row_idx}"], entry.status)
+            _write_text(ws[f"H{row_idx}"], entry.remarks)
+            day_type = entry.day_type or ("Week Off" if curr_date.weekday() in (5, 6) else "Working Day")
+            _write_text(ws[f"I{row_idx}"], day_type)
         else:
             if curr_date.weekday() in (5, 6):
                 ws[f"I{row_idx}"] = "Week Off"

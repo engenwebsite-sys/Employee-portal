@@ -21,12 +21,13 @@ export default function MicrosoftCallback() {
     }
 
     const code = searchParams.get("code");
-    if (!code) {
-      setError("Missing authorization code from Microsoft.");
+    const state = searchParams.get("state");
+    if (!code || !state) {
+      setError("Microsoft sign-in details are missing. Start sign-in again.");
       return;
     }
 
-    loginWithMicrosoft(code)
+    loginWithMicrosoft(code, state)
       .then(() => {
         navigate("/dashboard", { replace: true });
       })

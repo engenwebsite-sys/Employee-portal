@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 
-def build_microsoft_auth_url() -> str:
+def build_microsoft_auth_url(state: str, challenge: str) -> str:
     if not settings.microsoft_sso_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -22,13 +22,16 @@ def build_microsoft_auth_url() -> str:
             "response_mode": "query",
             "scope": "openid profile email User.Read",
             "prompt": "select_account",
+            "state": state,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
         }
     )
     tenant = settings.microsoft_tenant_id.strip()
     return f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize?{params}"
 
 
-def exchange_code_for_profile(code: str) -> tuple[str, str]:
+def exchange_code_for_profile(code: str, verifier: str) -> tuple[str, str]:
     if not settings.microsoft_sso_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -44,6 +47,7 @@ def exchange_code_for_profile(code: str) -> tuple[str, str]:
             "code": code,
             "redirect_uri": settings.microsoft_redirect_uri.strip(),
             "grant_type": "authorization_code",
+            "code_verifier": verifier,
             "scope": "openid profile email User.Read",
         }
     ).encode("utf-8")
@@ -58,10 +62,9 @@ def exchange_code_for_profile(code: str) -> tuple[str, str]:
         with urllib.request.urlopen(req, timeout=15) as resp:
             token_data = json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="ignore")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Microsoft sign-in failed: {detail or exc.reason}",
+            detail="Microsoft sign-in failed. Start sign-in again.",
         ) from exc
     except Exception as exc:
         raise HTTPException(
