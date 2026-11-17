@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, Date, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -24,6 +24,7 @@ class TimesheetEntry(Base):
     logout_time: Mapped[Optional[str]] = mapped_column(String(10))
     project: Mapped[Optional[str]] = mapped_column(String(150))
     task_description: Mapped[str] = mapped_column(Text, default="")
+    tasks: Mapped[list[dict] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="In Progress")
     remarks: Mapped[Optional[str]] = mapped_column(Text)
     day_type: Mapped[str] = mapped_column(String(30), default="Working Day")

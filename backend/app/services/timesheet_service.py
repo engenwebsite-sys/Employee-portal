@@ -1,5 +1,6 @@
 import calendar
-from datetime import date
+from collections import Counter
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
@@ -10,7 +11,7 @@ from app.models.employee import Employee
 from app.models.project import Project
 from app.models.timesheet import TimesheetEntry
 from app.models.user import Role, User
-from app.schemas.timesheet import TimesheetEntryOut, TimesheetEntryUpsert
+from app.schemas.timesheet import TimesheetEntryOut, TimesheetEntryUpsert, TimesheetTask
 
 
 def _require_employee(user: User) -> Employee:
@@ -57,12 +58,19 @@ def to_timesheet_out(entry: TimesheetEntry) -> TimesheetEntryOut:
         logout_time=entry.logout_time,
         project=entry.project,
         task_description=entry.task_description,
+        tasks=timesheet_tasks(entry),
         status=entry.status,
         remarks=entry.remarks,
         day_type=entry.day_type,
         created_at=entry.created_at,
         updated_at=entry.updated_at,
     )
+
+
+def timesheet_tasks(entry: TimesheetEntry) -> list[TimesheetTask]:
+    if entry.tasks is not None:
+        return [TimesheetTask.model_validate(task) for task in entry.tasks]
+    return [TimesheetTask(project=entry.project, task_description=entry.task_description, status=entry.status)]
 
 
 def list_my_timesheets(db: Session, user: User, month: str | None = None) -> list[TimesheetEntry]:
@@ -83,22 +91,34 @@ def list_my_timesheets(db: Session, user: User, month: str | None = None) -> lis
 
 def upsert_timesheet(db: Session, user: User, payload: TimesheetEntryUpsert) -> TimesheetEntry:
     emp = _require_employee(user)
+    db.scalar(select(Employee.id).where(Employee.id == emp.id).with_for_update())
     entry = db.scalar(
         select(TimesheetEntry).where(
             TimesheetEntry.employee_id == emp.id,
             TimesheetEntry.work_date == payload.work_date,
-        )
+        ).with_for_update()
     )
-    project_name = (payload.project or "").strip() or None
-    if project_name and (entry is None or project_name != entry.project):
-        project_id = db.scalar(
-            select(Project.id).where(
-                Project.name == project_name,
-                Project.status == "Active",
-                Project.visible_to_email(user.email),
-            )
-        )
-        if project_id is None:
+    if payload.tasks is not None and payload.entry_id != (entry.id if entry else None):
+        raise HTTPException(status_code=409, detail="Reload this date and use Edit to update its existing timesheet.")
+    if payload.tasks is not None and entry and payload.expected_updated_at != entry.updated_at:
+        raise HTTPException(status_code=409, detail="This timesheet changed since you opened it. Reopen the entry and try again.")
+    if payload.tasks is None and entry and entry.tasks is not None:
+        raise HTTPException(status_code=409, detail="Open the current Timesheets page to edit this entry.")
+
+    old_projects = Counter(task.project for task in timesheet_tasks(entry) if task.project) if entry else Counter()
+    tasks = payload.tasks if payload.tasks is not None else [TimesheetTask(
+        project=payload.project, task_description=payload.task_description, status=payload.status,
+    )]
+    for task in tasks:
+        task.project = (task.project or "").strip() or None
+        task.task_description = task.task_description.strip()
+        task.status = task.status.strip() or "In Progress"
+    new_projects = set(Counter(task.project for task in tasks if task.project) - old_projects)
+    if new_projects:
+        visible_projects = set(db.scalars(select(Project.name).where(
+            Project.name.in_(new_projects), Project.status == "Active", Project.visible_to_email(user.email),
+        )))
+        if new_projects != visible_projects:
             raise HTTPException(status_code=422, detail="Select a project from your division.")
 
     if entry is None:
@@ -107,11 +127,21 @@ def upsert_timesheet(db: Session, user: User, payload: TimesheetEntryUpsert) -> 
 
     entry.login_time = payload.login_time.strip() if payload.login_time else None
     entry.logout_time = payload.logout_time.strip() if payload.logout_time else None
-    entry.project = project_name
-    entry.task_description = payload.task_description.strip()
-    entry.status = payload.status.strip() or "In Progress"
+    first_task = tasks[0] if tasks else TimesheetTask(status="N/A")
+    entry.project = first_task.project
+    entry.task_description = first_task.task_description
+    statuses = {task.status for task in tasks} - {"N/A"}
+    if "Blocked" in statuses:
+        entry.status = "Blocked"
+    elif len(statuses) == 1:
+        entry.status = statuses.pop()
+    else:
+        entry.status = "In Progress" if statuses else "N/A"
+    if payload.tasks is not None:
+        entry.tasks = [task.model_dump() for task in tasks]
     entry.remarks = payload.remarks.strip() if payload.remarks else None
     entry.day_type = payload.day_type.strip() or "Working Day"
+    entry.updated_at = datetime.now(timezone.utc)
 
     db.commit()
     return db.scalar(_base_query().where(TimesheetEntry.id == entry.id))

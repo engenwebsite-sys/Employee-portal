@@ -4,7 +4,17 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class TimesheetTask(BaseModel):
+    project: str | None = Field(default=None, max_length=150)
+    task_description: str = Field(default="", max_length=5000)
+    status: str = Field(default="In Progress", max_length=30)
+    duration_minutes: int | None = Field(default=None, ge=1, le=1440)
+
+
 class TimesheetEntryUpsert(BaseModel):
+    entry_id: int | None = Field(default=None, ge=1)
+    expected_updated_at: datetime | None = None
+    tasks: list[TimesheetTask] | None = Field(default=None, max_length=25)
     work_date: date
     login_time: Optional[str] = Field(default=None, max_length=10)
     logout_time: Optional[str] = Field(default=None, max_length=10)
@@ -27,6 +37,7 @@ class TimesheetEntryOut(BaseModel):
     logout_time: Optional[str] = None
     project: Optional[str] = None
     task_description: str
+    tasks: list[TimesheetTask]
     status: str
     remarks: Optional[str] = None
     day_type: str

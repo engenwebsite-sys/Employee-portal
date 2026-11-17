@@ -6,6 +6,7 @@ import { portalDate } from "../lib/portalDate";
 
 const STATUS_OPTIONS = ["In Progress", "Completed", "Blocked", "N/A"];
 const DAY_TYPE_OPTIONS = ["Working Day", "Week Off", "Holiday", "Leave", "Half Day"];
+const EMPTY_TASK = { project: "", task_description: "", status: "In Progress", duration_minutes: "" };
 const STATUS_STYLE = {
   Completed: "bg-emerald-50 text-emerald-700 border border-emerald-200/60",
   "In Progress": "bg-amber-50 text-amber-700 border border-amber-200/60",
@@ -51,6 +52,33 @@ function csvEscape(val) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
+function TaskDetails({ tasks }) {
+  if (!tasks.length) return <span className="text-slate-400">No tasks</span>;
+  const minutes = tasks.reduce((total, task) => total + (task.duration_minutes ?? 0), 0);
+  return (
+    <details className="min-w-32">
+      <summary className="cursor-pointer font-semibold text-slate-800">
+        {tasks.length} {tasks.length === 1 ? "task" : "tasks"}{minutes > 0 && ` · ${taskTimeLabel(minutes)}`}
+      </summary>
+      <ul className="mt-2 space-y-2">
+        {tasks.map((task, index) => (
+          <li key={index} className="rounded-md bg-slate-50 p-2 text-slate-600">
+            <div className="font-semibold">{task.project || "General"}</div>
+            <div className="whitespace-pre-wrap break-words">{task.task_description || "—"}</div>
+            <div className="text-[11px]">{task.status}{task.duration_minutes && ` · ${taskTimeLabel(task.duration_minutes)}`}</div>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function taskTimeLabel(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return [hours && `${hours} hr`, remainder && `${remainder} min`].filter(Boolean).join(" ");
+}
+
 export default function Timesheets() {
   const { user } = useAuth();
   const canViewTeam = user?.role === "manager" || user?.role === "hr";
@@ -81,9 +109,8 @@ export default function Timesheets() {
     work_date: today,
     login_time: "09:15",
     logout_time: "17:30",
-    project: "",
-    task_description: "",
-    status: "In Progress",
+    entry_id: null,
+    tasks: [{ ...EMPTY_TASK }],
     remarks: "",
     day_type: "Working Day",
   });
@@ -154,7 +181,13 @@ export default function Timesheets() {
         body: { name: clean, status: "Active" },
       });
       setProjects((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
-      setForm((prev) => ({ ...prev, project: created.name }));
+      setForm((prev) => {
+        const firstEmpty = prev.tasks.findIndex((task) => !task.project);
+        const tasks = firstEmpty >= 0
+          ? prev.tasks.map((task, index) => index === firstEmpty ? { ...task, project: created.name } : task)
+          : prev.tasks.length < 25 ? [...prev.tasks, { ...EMPTY_TASK, project: created.name }] : prev.tasks;
+        return { ...prev, tasks };
+      });
       setNewProjectName("");
       setShowInlineProject(false);
     } catch (err) {
@@ -175,13 +208,17 @@ export default function Timesheets() {
   }, [teamEntries]);
 
   function openNew() {
+    const existing = myEntries.find((entry) => entry.work_date === today);
+    if (existing) {
+      openEdit(existing);
+      return;
+    }
     setForm({
       work_date: today,
       login_time: "09:15",
       logout_time: "17:30",
-      project: "",
-      task_description: "",
-      status: "In Progress",
+      entry_id: null,
+      tasks: [{ ...EMPTY_TASK }],
       remarks: "",
       day_type: "Working Day",
     });
@@ -194,14 +231,23 @@ export default function Timesheets() {
       work_date: entry.work_date,
       login_time: entry.login_time || "",
       logout_time: entry.logout_time || "",
-      project: entry.project || "",
-      task_description: entry.task_description || "",
-      status: entry.status || "In Progress",
+      entry_id: entry.id,
+      expected_updated_at: entry.updated_at,
+      tasks: entry.tasks.length ? entry.tasks.map((task) => ({
+        ...task, project: task.project ?? "", duration_minutes: task.duration_minutes ?? "",
+      })) : [{ ...EMPTY_TASK }],
       remarks: entry.remarks || "",
       day_type: entry.day_type || "Working Day",
     });
     setModalError("");
     setShowModal(true);
+  }
+
+  function updateTask(index, changes) {
+    setForm((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((task, taskIndex) => taskIndex === index ? { ...task, ...changes } : task),
+    }));
   }
 
   async function handleSave(e) {
@@ -215,9 +261,14 @@ export default function Timesheets() {
           work_date: form.work_date,
           login_time: form.login_time || null,
           logout_time: form.logout_time || null,
-          project: form.project.trim() || null,
-          task_description: form.task_description.trim(),
-          status: form.status,
+          entry_id: form.entry_id,
+          expected_updated_at: form.expected_updated_at,
+          tasks: form.tasks
+            .filter((task) => task.project || task.task_description.trim() || task.duration_minutes || task.status !== "In Progress")
+            .map((task) => ({
+              ...task, project: task.project || null,
+              duration_minutes: task.duration_minutes === "" ? null : Number(task.duration_minutes),
+            })),
           remarks: form.remarks.trim() || null,
           day_type: form.day_type,
         },
@@ -238,6 +289,7 @@ export default function Timesheets() {
       }
     } catch (err) {
       setModalError(err.message || "Failed to save entry.");
+      if (err.status === 409) void loadData({ showLoading: false });
     } finally {
       setSaving(false);
     }
@@ -266,6 +318,7 @@ export default function Timesheets() {
       "Project",
       "Task Description",
       "Status",
+      "Task Time (minutes)",
       "Remarks",
       "Day Type",
     ];
@@ -279,9 +332,10 @@ export default function Timesheets() {
           formatDayName(r.work_date),
           formatTime12(r.login_time),
           formatTime12(r.logout_time),
-          r.project || "",
-          r.task_description || "",
-          r.status,
+          r.tasks.map((task) => task.project || "—").join("\n"),
+          r.tasks.map((task) => task.task_description || "—").join("\n"),
+          r.tasks.length ? r.tasks.map((task) => task.status).join("\n") : r.status,
+          r.tasks.map((task) => task.duration_minutes ?? "—").join("\n"),
           r.remarks || "",
           r.day_type,
         ]
@@ -326,8 +380,9 @@ export default function Timesheets() {
     }
     return sum.toFixed(1);
   }, [activeRows]);
-  const completedTasks = activeRows.filter((r) => r.status === "Completed").length;
-  const activeTasks = activeRows.filter((r) => r.status === "In Progress" || r.status === "Blocked").length;
+  const tasks = activeRows.flatMap((row) => row.tasks);
+  const completedTasks = tasks.filter((task) => task.status === "Completed").length;
+  const activeTasks = tasks.filter((task) => task.status === "In Progress" || task.status === "Blocked").length;
 
   return (
     <AppShell
@@ -397,7 +452,7 @@ export default function Timesheets() {
         <div className="card-pastel-interactive bg-gradient-to-br from-white via-white to-indigo-50/50 p-3 sm:p-3.5 border-indigo-100/80">
           <div className="flex items-center justify-between">
             <span className="text-[10px] sm:text-[10.5px] font-bold uppercase tracking-wider text-slate-400">
-              Total Hours
+              Attendance Hours
             </span>
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 text-xs font-bold">
               ⏱️
@@ -519,8 +574,7 @@ export default function Timesheets() {
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Date</th>
                     <th className="px-3.5 py-2.5">Day</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Hours</th>
-                    <th className="px-3.5 py-2.5">Project</th>
-                    <th className="px-3.5 py-2.5 min-w-[240px]">Task Description</th>
+                    <th className="px-3.5 py-2.5 min-w-[240px]">Tasks</th>
                     <th className="px-3.5 py-2.5">Status</th>
                     <th className="px-3.5 py-2.5 min-w-[180px]">Remarks</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Type</th>
@@ -543,11 +597,8 @@ export default function Timesheets() {
                       <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 text-[11px]">
                         {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
                       </td>
-                      <td className="px-3.5 py-2.5 font-semibold text-slate-800">
-                        {row.project || "—"}
-                      </td>
-                      <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-600">
-                        {row.task_description || "—"}
+                      <td className="px-3.5 py-2.5">
+                        <TaskDetails tasks={row.tasks} />
                       </td>
                       <td className="px-3.5 py-2.5 whitespace-nowrap">
                         <span
@@ -619,17 +670,13 @@ export default function Timesheets() {
                   </div>
 
                   <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-semibold text-slate-800 truncate max-w-[200px]">
-                      {row.project || "General"}
-                    </span>
+                    {tab === "team" && <span className="font-semibold text-slate-800">{row.employee_name}</span>}
                     <span className="shrink-0 text-slate-400 font-medium">
                       {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/70 p-2.5 rounded-lg border border-slate-100">
-                    {row.task_description || "No task details provided."}
-                  </p>
+                  <TaskDetails tasks={row.tasks} />
 
                   {row.remarks && (
                     <div className="rounded-lg bg-rose-50/50 border border-rose-100/80 p-2 text-[11px] text-[#ea384d]">
@@ -679,7 +726,7 @@ export default function Timesheets() {
             <div className="mx-auto mb-2.5 h-1 w-10 rounded-full bg-slate-200 sm:hidden" />
 
             <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
-              <h2 className="text-sm font-bold text-slate-900">Log Daily Timesheet</h2>
+              <h2 className="text-sm font-bold text-slate-900">{form.entry_id ? "Edit Daily Timesheet" : "Log Daily Timesheet"}</h2>
               <button
                 type="button"
                 onClick={() => setShowModal(false)}
@@ -696,6 +743,7 @@ export default function Timesheets() {
                   type="date"
                   required
                   value={form.work_date}
+                  readOnly={form.entry_id !== null}
                   onChange={(e) => setForm({ ...form, work_date: e.target.value })}
                   className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
                 />
@@ -736,9 +784,9 @@ export default function Timesheets() {
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-2">
                 <div className="mb-1 flex items-center justify-between">
-                  <label htmlFor="timesheet-project" className="font-semibold text-slate-700">Project</label>
+                  <span className="font-semibold text-slate-700">Tasks</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -776,50 +824,78 @@ export default function Timesheets() {
                   </div>
                 )}
 
-                <select
-                  id="timesheet-project"
-                  value={form.project}
-                  onChange={(e) => setForm({ ...form, project: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
-                >
-                  <option value="">{loadingProjects ? "Loading projects…" : "Select a project"}</option>
-                  {form.project && !projects.some((project) => project.name === form.project) && (
-                    <option value={form.project}>{form.project}</option>
-                  )}
-                  {projects.map((project) => (
-                    <option key={project.id} value={project.name}>{project.name}</option>
-                  ))}
-                </select>
                 {projectLoadError && (
                   <p role="alert" className="mt-1 text-[10px] font-medium text-rose-700">{projectLoadError}</p>
                 )}
               </div>
 
-              <div>
-                <label className="mb-1 block font-semibold text-slate-700">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 outline-none focus:border-slate-400"
-                >
-                  {STATUS_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="mb-1 block font-semibold text-slate-700">Task Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="- Completed development tasks..."
-                  value={form.task_description}
-                  onChange={(e) => setForm({ ...form, task_description: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 outline-none focus:border-slate-400"
-                />
-              </div>
+              {form.tasks.map((task, index) => (
+                <fieldset key={index} className="grid gap-2 rounded-lg border border-slate-200 p-3 sm:col-span-2 sm:grid-cols-3">
+                  <legend className="px-1 font-semibold text-slate-700">Task {index + 1}</legend>
+                  <label className="space-y-1 font-semibold">
+                    Project
+                    <select
+                      className="block w-full rounded-lg border border-slate-200 bg-white p-1.5 font-normal"
+                      value={task.project}
+                      onChange={(e) => updateTask(index, { project: e.target.value })}
+                    >
+                      <option value="">{loadingProjects ? "Loading projects…" : "Select a project"}</option>
+                      {task.project && !projects.some((project) => project.name === task.project) && (
+                        <option value={task.project}>{task.project}</option>
+                      )}
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.name}>{project.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1 font-semibold">
+                    Status
+                    <select
+                      className="block w-full rounded-lg border border-slate-200 bg-white p-1.5 font-normal"
+                      value={task.status}
+                      onChange={(e) => updateTask(index, { status: e.target.value })}
+                    >
+                      {!STATUS_OPTIONS.includes(task.status) && <option>{task.status}</option>}
+                      {STATUS_OPTIONS.map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                  </label>
+                  <label className="space-y-1 font-semibold">
+                    Time spent (min, optional)
+                    <input
+                      type="number" min="1" max="1440" step="1"
+                      className="block w-full rounded-lg border border-slate-200 p-1.5 font-normal"
+                      value={task.duration_minutes}
+                      onChange={(e) => updateTask(index, { duration_minutes: e.target.value })}
+                    />
+                  </label>
+                  <label className="space-y-1 font-semibold sm:col-span-3">
+                    Task Description
+                    <textarea
+                      rows={2} maxLength={5000}
+                      className="block w-full rounded-lg border border-slate-200 p-1.5 font-normal"
+                      value={task.task_description}
+                      onChange={(e) => updateTask(index, { task_description: e.target.value })}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="justify-self-start font-semibold text-rose-600"
+                    onClick={() => setForm((prev) => ({
+                      ...prev, tasks: prev.tasks.filter((_, taskIndex) => taskIndex !== index),
+                    }))}
+                  >
+                    Remove task
+                  </button>
+                </fieldset>
+              ))}
+              <button
+                type="button"
+                className="justify-self-start font-semibold text-rose-600 disabled:opacity-50 sm:col-span-2"
+                disabled={form.tasks.length >= 25}
+                onClick={() => setForm((prev) => ({ ...prev, tasks: [...prev.tasks, { ...EMPTY_TASK }] }))}
+              >
+                + Add Task
+              </button>
 
               <div className="sm:col-span-2">
                 <label className="mb-1 block font-semibold text-slate-700">Remarks / Blockers</label>

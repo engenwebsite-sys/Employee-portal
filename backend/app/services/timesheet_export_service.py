@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.employee import Employee
 from app.models.project import Project
 from app.models.timesheet import TimesheetEntry
+from app.services.timesheet_service import timesheet_tasks
 
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "timesheet_template.xlsx"
 
@@ -132,6 +133,21 @@ def generate_timesheet_excel(
         else:
             if curr_date.weekday() in (5, 6):
                 ws[f"I{row_idx}"] = "Week Off"
+
+    task_sheet = wb.create_sheet("Task Details")
+    task_sheet.append(["Date", "Project", "Task Description", "Status", "Time Spent (minutes)"])
+    task_sheet.freeze_panes = "A2"
+    for column, width in {"A": 15, "B": 30, "C": 60, "D": 18, "E": 24}.items():
+        task_sheet.column_dimensions[column].width = width
+    row_number = 2
+    for entry in entries:
+        for task in timesheet_tasks(entry):
+            task_sheet.cell(row_number, 1, entry.work_date).number_format = "dd-mmm-yy"
+            _write_text(task_sheet.cell(row_number, 2), task.project)
+            _write_text(task_sheet.cell(row_number, 3), task.task_description)
+            _write_text(task_sheet.cell(row_number, 4), task.status)
+            task_sheet.cell(row_number, 5, task.duration_minutes)
+            row_number += 1
 
     buf = io.BytesIO()
     wb.save(buf)
