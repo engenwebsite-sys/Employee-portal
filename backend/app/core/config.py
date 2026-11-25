@@ -33,6 +33,13 @@ class Settings(BaseSettings):
     allowed_login_domains: str = "nemilink.com,maargaai.com,engencbss.com"
     super_admin_emails: str = "sivachandran@maargaai.com,raja@engencbss.com"
 
+    # Hiring notifications from the company HR mailbox.
+    hiring_email_from: str = ""
+    hiring_smtp_host: str = ""
+    hiring_smtp_port: int = 587
+    hiring_smtp_username: str = ""
+    hiring_smtp_password: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

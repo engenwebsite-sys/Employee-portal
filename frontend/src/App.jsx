@@ -14,6 +14,7 @@ const Leaves = lazy(() => import("./pages/Leaves"));
 const Team = lazy(() => import("./pages/Team"));
 const Employees = lazy(() => import("./pages/Employees"));
 const Departments = lazy(() => import("./pages/Departments"));
+const Hiring = lazy(() => import("./pages/Hiring"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Forbidden = lazy(() => import("./pages/Forbidden"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -45,6 +46,7 @@ export default function App() {
           {/* HR only */}
           <Route element={<ProtectedRoute roles={["hr"]} />}>
             <Route path="/employees" element={<Employees />} />
+            <Route path="/hiring" element={<Hiring />} />
             <Route path="/departments" element={<Departments />} />
           </Route>
 
