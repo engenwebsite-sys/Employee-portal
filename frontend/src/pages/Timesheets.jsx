@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AppShell from "../components/AppShell";
 import { useAuth } from "../context/AuthContext";
 import { api, downloadFile } from "../lib/api";
@@ -52,35 +52,47 @@ function csvEscape(val) {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-function TaskDetails({ tasks }) {
+function TaskToggle({ tasks, expanded, onToggle }) {
   if (!tasks.length) return <span className="text-slate-400">No tasks</span>;
+
   const minutes = tasks.reduce((total, task) => total + (task.duration_minutes ?? 0), 0);
   return (
-    <details className="min-w-32">
-      <summary className="cursor-pointer font-semibold text-slate-800">
-        {tasks.length} {tasks.length === 1 ? "task" : "tasks"}{minutes > 0 && ` · ${taskTimeLabel(minutes)}`}
-      </summary>
-      <ul className="mt-2 space-y-2">
-        {tasks.map((task, index) => (
-          <li key={index} className="rounded-md bg-slate-50 p-2 text-slate-600">
-            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-              <div className="min-w-0 break-words font-semibold">{task.project || "General"}</div>
-              <span
-                className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
-                  STATUS_STYLE[task.status] || STATUS_STYLE["N/A"]
-                }`}
-              >
-                {task.status}
-              </span>
-            </div>
-            <div className="whitespace-pre-wrap break-words">{task.task_description || "—"}</div>
-            {task.duration_minutes > 0 && (
-              <div className="mt-1 text-[11px]">{taskTimeLabel(task.duration_minutes)}</div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </details>
+    <button
+      type="button"
+      aria-expanded={expanded}
+      onClick={onToggle}
+      className="inline-flex items-center gap-1.5 rounded-md py-1 text-left font-semibold text-slate-800 hover:text-rose-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500"
+    >
+      <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" className={`size-3.5 shrink-0 ${expanded ? "rotate-90" : ""}`}>
+        <path d="m6 4 4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span>{tasks.length} {tasks.length === 1 ? "task" : "tasks"}{minutes > 0 && ` · ${taskTimeLabel(minutes)}`}</span>
+    </button>
+  );
+}
+
+function TaskCards({ tasks }) {
+  return (
+    <ul className="grid gap-3 lg:grid-cols-2">
+      {tasks.map((task, index) => (
+        <li key={index} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
+          <div className="mb-2 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+            <div className="break-words font-semibold text-slate-800">{task.project || "General"}</div>
+            <span
+              className={`max-w-32 break-words rounded-md px-2 py-0.5 text-right text-[10px] font-semibold ${
+                STATUS_STYLE[task.status] || STATUS_STYLE["N/A"]
+              }`}
+            >
+              {task.status}
+            </span>
+          </div>
+          <div className="whitespace-pre-wrap break-words leading-relaxed">{task.task_description || "—"}</div>
+          {task.duration_minutes > 0 && (
+            <div className="mt-2 text-[11px] text-slate-500">{taskTimeLabel(task.duration_minutes)}</div>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -125,6 +137,7 @@ export default function Timesheets() {
   const currentMonth = today.slice(0, 7);
 
   const [tab, setTab] = useState("my");
+  const [expandedEntries, setExpandedEntries] = useState(() => new Set());
   const [month, setMonth] = useState(currentMonth);
   const [myEntries, setMyEntries] = useState([]);
   const [teamEntries, setTeamEntries] = useState([]);
@@ -407,6 +420,15 @@ export default function Timesheets() {
     }
   }
 
+  function toggleEntryTasks(entryId) {
+    setExpandedEntries((current) => {
+      const next = new Set(current);
+      if (next.has(entryId)) next.delete(entryId);
+      else next.add(entryId);
+      return next;
+    });
+  }
+
   const activeRows = tab === "my" ? myEntries : teamEntries;
 
   // Monthly summary calculations
@@ -612,53 +634,66 @@ export default function Timesheets() {
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Date</th>
                     <th className="px-3.5 py-2.5">Day</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Hours</th>
-                    <th className="px-3.5 py-2.5 min-w-[240px]">Tasks</th>
+                    <th className="min-w-32 px-3.5 py-2.5">Tasks</th>
                     <th className="px-3.5 py-2.5 min-w-[180px]">Remarks</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Type</th>
-                    {tab === "my" && <th className="px-3.5 py-2.5 text-right">Actions</th>}
+                    {tab === "my" && <th className="w-24 px-3.5 py-2.5 text-center">Actions</th>}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 align-top">
+                <tbody className="divide-y divide-slate-100">
                   {activeRows.map((row) => (
-                    <tr key={row.id} className="hover:bg-slate-50/60 transition-colors">
-                      {tab === "team" && (
-                        <td className="px-3.5 py-2.5 whitespace-nowrap">
-                          <div className="font-semibold text-slate-800">{row.employee_name}</div>
-                          <div className="text-[10px] text-slate-400">{row.employee_code}</div>
+                    <Fragment key={row.id}>
+                      <tr className="align-middle hover:bg-slate-50/60 transition-colors">
+                        {tab === "team" && (
+                          <td className="px-3.5 py-2.5 whitespace-nowrap">
+                            <div className="font-semibold text-slate-800">{row.employee_name}</div>
+                            <div className="text-[10px] text-slate-400">{row.employee_code}</div>
+                          </td>
+                        )}
+                        <td className="px-3.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
+                          {row.work_date}
                         </td>
-                      )}
-                      <td className="px-3.5 py-2.5 font-semibold text-slate-800 whitespace-nowrap">
-                        {row.work_date}
-                      </td>
-                      <td className="px-3.5 py-2.5 text-slate-400">{formatDayName(row.work_date)}</td>
-                      <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 text-[11px]">
-                        {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
-                      </td>
-                      <td className="px-3.5 py-2.5">
-                        <TaskDetails tasks={row.tasks} />
-                      </td>
-                      <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-500 text-[11px]">
-                        {row.remarks || "—"}
-                      </td>
-                      <td className="px-3.5 py-2.5 whitespace-nowrap">
-                        <span
-                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${
-                            DAY_TYPE_STYLE[row.day_type] || "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {row.day_type}
-                        </span>
-                      </td>
-                      {tab === "my" && (
-                        <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                          <TimesheetActions
-                            date={row.work_date}
-                            onEdit={() => openEdit(row)}
-                            onDelete={() => handleDelete(row.id)}
+                        <td className="px-3.5 py-2.5 text-slate-400">{formatDayName(row.work_date)}</td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap text-slate-600 text-[11px]">
+                          {formatTime12(row.login_time)} - {formatTime12(row.logout_time)}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <TaskToggle
+                            tasks={row.tasks}
+                            expanded={expandedEntries.has(row.id)}
+                            onToggle={() => toggleEntryTasks(row.id)}
                           />
                         </td>
+                        <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-500 text-[11px]">
+                          {row.remarks || "—"}
+                        </td>
+                        <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          <span
+                            className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-medium ${
+                              DAY_TYPE_STYLE[row.day_type] || "bg-slate-100 text-slate-600"
+                            }`}
+                          >
+                            {row.day_type}
+                          </span>
+                        </td>
+                        {tab === "my" && (
+                          <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                            <TimesheetActions
+                              date={row.work_date}
+                              onEdit={() => openEdit(row)}
+                              onDelete={() => handleDelete(row.id)}
+                            />
+                          </td>
+                        )}
+                      </tr>
+                      {row.tasks.length > 0 && expandedEntries.has(row.id) && (
+                        <tr className="bg-slate-50/80">
+                          <td colSpan={7} className="px-3.5 py-3">
+                            <TaskCards tasks={row.tasks} />
+                          </td>
+                        </tr>
                       )}
-                    </tr>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -684,7 +719,12 @@ export default function Timesheets() {
                     </span>
                   </div>
 
-                  <TaskDetails tasks={row.tasks} />
+                  <TaskToggle
+                    tasks={row.tasks}
+                    expanded={expandedEntries.has(row.id)}
+                    onToggle={() => toggleEntryTasks(row.id)}
+                  />
+                  {row.tasks.length > 0 && expandedEntries.has(row.id) && <TaskCards tasks={row.tasks} />}
 
                   {row.remarks && (
                     <div className="rounded-lg bg-rose-50/50 border border-rose-100/80 p-2 text-[11px] text-[#ea384d]">
