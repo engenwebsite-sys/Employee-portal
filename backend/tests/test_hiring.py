@@ -141,18 +141,43 @@ def test_talent_pool_saves_candidate_before_any_opening_and_links_same_profile(c
     contact = {
         "name": "Talent Pool Candidate", "email": f"pool-{uuid4().hex}@example.com",
         "phone": "555-0100", "resume_url": "https://onedrive.live.com/test-resume",
+        "profile": {
+            "city": "Chennai", "role_category": "Software Engineering",
+            "preferred_position": "Frontend Developer", "experience_type": "Experienced",
+            "company": "Example Studio", "designation": "UI Developer",
+            "experience_years": 2, "experience_months": 6, "current_ctc_lpa": "6.50",
+            "expected_ctc_lpa": "8.25", "linkedin_url": "https://www.linkedin.com/in/example",
+            "github_url": "https://github.com/example", "portfolio_url": "https://example.com/portfolio",
+            "project_links": [{"name": "Design system", "url": "https://example.com/project"}],
+        },
     }
     assert client.post(api + "/candidates", headers=manager, json=contact).status_code == 403
     created = client.post(api + "/candidates", headers=hr, json=contact)
     assert created.status_code == 201, created.text
     candidate = created.json()
     assert candidate in client.get(api, headers=hr).json()["talent_pool"]
+    assert candidate["profile"]["current_ctc_lpa"] == "6.50"
+    assert candidate["profile"]["company"] == "Example Studio"
     assert client.post(api + "/candidates", headers=hr, json=contact).status_code == 409
 
     candidate_url = api + f"/candidates/{candidate['id']}"
-    updated = client.put(candidate_url, headers=hr, json={**contact, "phone": "555-0200"})
+    legacy_update = {key: value for key, value in contact.items() if key != "profile"}
+    updated = client.put(candidate_url, headers=hr, json={**legacy_update, "phone": "555-0200"})
     assert updated.status_code == 200
     assert updated.json()["phone"] == "555-0200"
+    assert updated.json()["profile"] == candidate["profile"]
+
+    fresher = {**contact["profile"], "experience_type": "Fresher"}
+    fresher_result = client.put(candidate_url, headers=hr, json={
+        **contact, "phone": "555-0200", "profile": fresher,
+    })
+    assert fresher_result.status_code == 200
+    profile = fresher_result.json()["profile"]
+    assert profile["company"] is None
+    assert profile["experience_years"] is None
+    assert profile["current_ctc_lpa"] is None
+    assert profile["expected_ctc_lpa"] == "8.25"
+    assert profile["project_links"] == contact["profile"]["project_links"]
     opening = client.post(api + "/openings", headers=hr, json={
         "title": "Backend Engineer", "division": "Nemilink", "vacancies": 1,
         "manager_id": manager_id, "rounds": ["Technical"],
@@ -164,7 +189,7 @@ def test_talent_pool_saves_candidate_before_any_opening_and_links_same_profile(c
     application = client.post(link_url, headers=hr, json=link)
     assert application.status_code == 201, application.text
     assert application.json()["stage"] == "Applied"
-    assert application.json()["candidate"] == {**contact, "phone": "555-0200"}
+    assert application.json()["candidate"] == {**contact, "phone": "555-0200", "profile": profile}
     assert client.post(link_url, headers=hr, json=link).status_code == 409
     pool = client.get(api, headers=hr).json()["talent_pool"]
     assert all(record["id"] != candidate["id"] for record in pool)

@@ -31,6 +31,7 @@ class HiringCandidate(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(40))
     resume_url: Mapped[str | None] = mapped_column(Text)
+    profile: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
 
 
 class HiringApplication(Base):

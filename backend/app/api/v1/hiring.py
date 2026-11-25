@@ -54,6 +54,8 @@ def _opening_out(opening: HiringOpening) -> OpeningOut:
 def _candidate_values(contact: CandidateFields) -> dict:
     values = contact.model_dump(mode="json")
     values["email"] = values["email"].lower()
+    if "profile" not in contact.model_fields_set:
+        values.pop("profile")
     return values
 
 
@@ -165,10 +167,12 @@ def link_candidate(candidate_id: int, payload: CandidateLink, db: Database):
 def create_application(payload: ApplicationCreate, db: Database):
     opening = _opening_for_application(db, payload.opening_id)
     contact = _candidate_values(payload.candidate)
-    candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == contact["email"]))
+    candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == contact["email"]).with_for_update())
     if candidate is None:
         candidate = HiringCandidate(**contact)
         db.add(candidate)
+    elif candidate.profile is None and contact.get("profile"):
+        candidate.profile = contact["profile"]
     return _create_application(db, opening, candidate, **payload.model_dump(exclude={"candidate", "opening_id"}))
 
 

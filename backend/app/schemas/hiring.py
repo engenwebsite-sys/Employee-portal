@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator, model_validator
@@ -12,7 +13,7 @@ InterviewResult = Literal["Pending", "Passed", "Failed", "On Hold"]
 class HiringPayload(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid", from_attributes=True)
 
-    @field_validator("resume_url", "meeting_url", check_fields=False)
+    @field_validator("resume_url", "meeting_url", "linkedin_url", "github_url", "portfolio_url", "url", check_fields=False)
     @classmethod
     def https_only(cls, value: HttpUrl | None):
         if value and (value.scheme != "https" or value.username or value.password):
@@ -41,11 +42,52 @@ class OpeningFields(HiringPayload):
         return values
 
 
+class CandidateProjectLink(HiringPayload):
+    name: str = Field(min_length=1, max_length=120)
+    url: HttpUrl
+
+
+class CandidateProfile(HiringPayload):
+    city: str | None = Field(default=None, max_length=100)
+    role_category: str | None = Field(default=None, max_length=80)
+    preferred_position: str = Field(min_length=1, max_length=150)
+    skills: str | None = Field(default=None, max_length=500)
+    qualification: str | None = Field(default=None, max_length=150)
+    graduation_year: int | None = Field(default=None, ge=1900, le=2100)
+    source: str | None = Field(default=None, max_length=120)
+    experience_type: Literal["Fresher", "Experienced"]
+    experience_years: int | None = Field(default=None, ge=0, le=60)
+    experience_months: int | None = Field(default=None, ge=0, le=11)
+    company: str | None = Field(default=None, max_length=150)
+    designation: str | None = Field(default=None, max_length=150)
+    notice_period: str | None = Field(default=None, max_length=80)
+    current_ctc_lpa: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    expected_ctc_lpa: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    joining_date: date | None = None
+    linkedin_url: HttpUrl | None = None
+    github_url: HttpUrl | None = None
+    portfolio_url: HttpUrl | None = None
+    project_links: list[CandidateProjectLink] = Field(default_factory=list, max_length=12)
+    notes: str | None = Field(default=None, max_length=5000)
+
+    @model_validator(mode="after")
+    def remove_employment_details_for_fresher(self):
+        if self.experience_type == "Fresher":
+            self.experience_years = None
+            self.experience_months = None
+            self.company = None
+            self.designation = None
+            self.notice_period = None
+            self.current_ctc_lpa = None
+        return self
+
+
 class CandidateFields(HiringPayload):
     name: str = Field(min_length=1, max_length=150)
     email: EmailStr = Field(max_length=255)
     phone: str | None = Field(default=None, max_length=40)
     resume_url: HttpUrl | None = None
+    profile: CandidateProfile | None = None
 
 
 class CandidateOut(CandidateFields):
