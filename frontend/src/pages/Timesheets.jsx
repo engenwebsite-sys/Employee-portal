@@ -63,9 +63,20 @@ function TaskDetails({ tasks }) {
       <ul className="mt-2 space-y-2">
         {tasks.map((task, index) => (
           <li key={index} className="rounded-md bg-slate-50 p-2 text-slate-600">
-            <div className="font-semibold">{task.project || "General"}</div>
+            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <div className="min-w-0 break-words font-semibold">{task.project || "General"}</div>
+              <span
+                className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${
+                  STATUS_STYLE[task.status] || STATUS_STYLE["N/A"]
+                }`}
+              >
+                {task.status}
+              </span>
+            </div>
             <div className="whitespace-pre-wrap break-words">{task.task_description || "—"}</div>
-            <div className="text-[11px]">{task.status}{task.duration_minutes && ` · ${taskTimeLabel(task.duration_minutes)}`}</div>
+            {task.duration_minutes > 0 && (
+              <div className="mt-1 text-[11px]">{taskTimeLabel(task.duration_minutes)}</div>
+            )}
           </li>
         ))}
       </ul>
@@ -602,7 +613,6 @@ export default function Timesheets() {
                     <th className="px-3.5 py-2.5">Day</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Hours</th>
                     <th className="px-3.5 py-2.5 min-w-[240px]">Tasks</th>
-                    <th className="px-3.5 py-2.5">Status</th>
                     <th className="px-3.5 py-2.5 min-w-[180px]">Remarks</th>
                     <th className="px-3.5 py-2.5 whitespace-nowrap">Type</th>
                     {tab === "my" && <th className="px-3.5 py-2.5 text-right">Actions</th>}
@@ -626,15 +636,6 @@ export default function Timesheets() {
                       </td>
                       <td className="px-3.5 py-2.5">
                         <TaskDetails tasks={row.tasks} />
-                      </td>
-                      <td className="px-3.5 py-2.5 whitespace-nowrap">
-                        <span
-                          className={`inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ${
-                            STATUS_STYLE[row.status] || "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {row.status}
-                        </span>
                       </td>
                       <td className="px-3.5 py-2.5 leading-relaxed whitespace-pre-line text-slate-500 text-[11px]">
                         {row.remarks || "—"}
@@ -667,21 +668,12 @@ export default function Timesheets() {
             <div className="divide-y divide-slate-100 sm:hidden">
               {activeRows.map((row) => (
                 <article key={row.id} className="p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-slate-900 text-xs">
-                        {row.work_date}
-                      </span>
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-500">
-                        {formatDayName(row.work_date)}
-                      </span>
-                    </div>
-                    <span
-                      className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${
-                        STATUS_STYLE[row.status] || "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {row.status}
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-900 text-xs">
+                      {row.work_date}
+                    </span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9.5px] font-bold text-slate-500">
+                      {formatDayName(row.work_date)}
                     </span>
                   </div>
 
