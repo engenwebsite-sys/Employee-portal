@@ -137,6 +137,16 @@ def update_candidate(candidate_id: int, payload: CandidateFields, db: Database):
     return candidate
 
 
+@router.delete("/candidates/{candidate_id}", status_code=204)
+def delete_candidate(candidate_id: int, db: Database):
+    candidate = _get_or_404(db, HiringCandidate, candidate_id, lock=True)
+    has_application = select(HiringApplication.id).where(HiringApplication.candidate_id == candidate.id).exists()
+    if db.scalar(select(has_application)):
+        raise HTTPException(status_code=409, detail="This candidate is linked to an opening and cannot be deleted.")
+    db.delete(candidate)
+    db.commit()
+
+
 def _opening_for_application(db: Session, opening_id: int) -> HiringOpening:
     opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
     if opening.status == "Closed":

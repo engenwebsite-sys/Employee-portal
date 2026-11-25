@@ -11,6 +11,7 @@ const tabs = ["Overview", "Openings", "Candidates", "Talent Pool", "Interview Sc
 const initialData = { openings: [], applications: [], talent_pool: [], managers: [] };
 const primary = "btn-brand-gradient rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-50";
 const secondary = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50";
+const danger = "rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50";
 const panel = "card-pastel overflow-hidden p-4 sm:p-5";
 const dateFormatter = new Intl.DateTimeFormat("en-IN", {
   timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short",
@@ -250,6 +251,13 @@ export default function Hiring() {
           setSelectedId(result.id);
           setTab("Candidates");
         }
+      } else if (dialog.type === "delete") {
+        const candidateId = dialog.poolCandidate.id;
+        await api("/hiring/candidates/" + candidateId, { method: "DELETE" });
+        setData((current) => ({
+          ...current,
+          talent_pool: current.talent_pool.filter((candidate) => candidate.id !== candidateId),
+        }));
       } else if (dialog.type === "link") {
         const result = await api("/hiring/candidates/" + dialog.poolCandidate.id + "/applications", {
           method: "POST",
@@ -275,7 +283,7 @@ export default function Hiring() {
       setDialog(null);
       await load();
     } catch (err) {
-      setFormError(err.message || "Could not save.");
+      setFormError(err.message || (dialog.type === "delete" ? "Could not delete the candidate." : "Could not save."));
     } finally {
       setBusy(false);
     }
@@ -293,7 +301,9 @@ export default function Hiring() {
     }
   }
 
+  const deletingCandidate = dialog?.type === "delete";
   const dialogTitle = dialog && {
+    delete: "Delete candidate",
     opening: dialog.opening ? "Edit opening" : "New opening",
     candidate: dialog.application ? "Edit candidate application" : dialog.poolCandidate ? "Edit candidate" : "Add candidate",
     link: "Link candidate to opening",
@@ -401,6 +411,8 @@ export default function Hiring() {
                     {hasCandidateOpening ? (
                       <button type="button" className={secondary} onClick={() => openDialog({ type: "link", poolCandidate: candidate })}>Link to Opening</button>
                     ) : <span className="self-center text-xs text-slate-500">Waiting for an opening</span>}
+                    <button type="button" className={danger} aria-label={"Delete " + candidate.name}
+                      onClick={() => openDialog({ type: "delete", poolCandidate: candidate })}>Delete</button>
                   </div>
                 </li>
               ))}
@@ -531,10 +543,19 @@ export default function Hiring() {
                 {dialog.type === "link" && <OpeningSelect openings={data.openings} required />}
                 {dialog.type === "schedule" && <ScheduleForm opening={dialog.opening} interview={dialog.interview} round={dialog.round} />}
                 {dialog.type === "review" && <ReviewForm interview={dialog.interview} />}
+                {deletingCandidate && (
+                  <p className="text-sm text-slate-700">
+                    Permanently delete <strong>{dialog.poolCandidate.name}</strong> ({dialog.poolCandidate.email}) from the Talent Pool?
+                  </p>
+                )}
                 {formError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{formError}</p>}
                 <div className="flex justify-end gap-2">
-                  <button type="button" className={secondary} disabled={busy} onClick={() => setDialog(null)}>Close</button>
-                  <button type="submit" className={primary} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+                  <button type="button" className={secondary} disabled={busy} onClick={() => setDialog(null)}>{deletingCandidate ? "Cancel" : "Close"}</button>
+                  {deletingCandidate ? (
+                    <button type="submit" className={danger} disabled={busy}>{busy ? "Deleting…" : "Delete candidate"}</button>
+                  ) : (
+                    <button type="submit" className={primary} disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+                  )}
                 </div>
               </form>
             )}

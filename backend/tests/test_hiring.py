@@ -193,3 +193,27 @@ def test_talent_pool_saves_candidate_before_any_opening_and_links_same_profile(c
     assert client.post(link_url, headers=hr, json=link).status_code == 409
     pool = client.get(api, headers=hr).json()["talent_pool"]
     assert all(record["id"] != candidate["id"] for record in pool)
+    assert client.delete(candidate_url, headers=hr).status_code == 409
+    assert client.get(api, headers=hr).json()["applications"][0]["id"] == application.json()["id"]
+
+
+def test_hr_can_delete_unlinked_talent_pool_candidate(client):
+    from uuid import uuid4
+
+    make_user("delete-hr@nemilink.com", "hr")
+    make_user("delete-manager@nemilink.com", "manager")
+    hr = auth(login(client, "delete-hr@nemilink.com").json())
+    manager = auth(login(client, "delete-manager@nemilink.com").json())
+    api = "/api/v1/hiring"
+    contact = {"name": "Candidate to Remove", "email": f"remove-{uuid4().hex}@example.com"}
+    created = client.post(api + "/candidates", headers=hr, json=contact)
+    assert created.status_code == 201, created.text
+    candidate_id = created.json()["id"]
+    candidate_url = api + f"/candidates/{candidate_id}"
+
+    assert client.delete(candidate_url, headers=manager).status_code == 403
+    assert client.delete(candidate_url, headers=hr).status_code == 204
+    pool = client.get(api, headers=hr).json()["talent_pool"]
+    assert all(record["id"] != candidate_id for record in pool)
+    assert client.delete(candidate_url, headers=hr).status_code == 404
+    assert client.post(api + "/candidates", headers=hr, json=contact).status_code == 201
