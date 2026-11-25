@@ -79,6 +79,33 @@ function taskTimeLabel(minutes) {
   return [hours && `${hours} hr`, remainder && `${remainder} min`].filter(Boolean).join(" ");
 }
 
+function TimesheetActions({ date, onEdit, onDelete }) {
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        aria-label={`Edit timesheet for ${date}`}
+        title="Edit timesheet"
+        onClick={onEdit}
+        className="inline-flex size-11 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-500 sm:size-8"
+      >
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-4">
+          <path d="M16 4l4 4M4 20l4.5-1 12-12a2.8 2.8 0 0 0-4-4l-12 12L4 20Z" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        aria-label={`Delete timesheet for ${date}`}
+        title="Delete timesheet"
+        onClick={onDelete}
+        className="inline-flex size-11 items-center justify-center rounded-md hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 sm:size-8"
+      >
+        <img src={`${import.meta.env.BASE_URL}timesheet-delete.png`} alt="" className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function Timesheets() {
   const { user } = useAuth();
   const canViewTeam = user?.role === "manager" || user?.role === "hr";
@@ -623,22 +650,11 @@ export default function Timesheets() {
                       </td>
                       {tab === "my" && (
                         <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                          <div className="inline-flex gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => openEdit(row)}
-                              className="rounded px-2 py-0.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(row.id)}
-                              className="rounded px-2 py-0.5 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                            >
-                              Del
-                            </button>
-                          </div>
+                          <TimesheetActions
+                            date={row.work_date}
+                            onEdit={() => openEdit(row)}
+                            onDelete={() => handleDelete(row.id)}
+                          />
                         </td>
                       )}
                     </tr>
@@ -689,22 +705,11 @@ export default function Timesheets() {
                       <span className="text-[10px] text-slate-400 font-medium">
                         {row.day_type}
                       </span>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="rounded-md border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(row.id)}
-                          className="rounded-md border border-rose-200/80 bg-rose-50/50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100/60"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                      <TimesheetActions
+                        date={row.work_date}
+                        onEdit={() => openEdit(row)}
+                        onDelete={() => handleDelete(row.id)}
+                      />
                     </div>
                   )}
                 </article>
