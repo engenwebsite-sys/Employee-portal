@@ -48,6 +48,14 @@ class CandidateFields(HiringPayload):
     resume_url: HttpUrl | None = None
 
 
+class CandidateOut(CandidateFields):
+    id: int
+
+
+class CandidateLink(HiringPayload):
+    opening_id: int = Field(gt=0)
+
+
 class ApplicationFields(HiringPayload):
     candidate: CandidateFields
     stage: ApplicationStage = "Applied"
@@ -141,5 +149,6 @@ class ManagerOption(BaseModel):
 
 class HiringOverview(BaseModel):
     openings: list[OpeningOut]
+    talent_pool: list[CandidateOut]
     applications: list[ApplicationOut]
     managers: list[ManagerOption]

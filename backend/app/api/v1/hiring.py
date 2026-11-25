@@ -11,8 +11,8 @@ from app.db.session import get_db
 from app.models import Role, User
 from app.models.hiring import HiringApplication, HiringCandidate, HiringInterview, HiringNotification, HiringOpening
 from app.schemas.hiring import (
-    ApplicationCreate, ApplicationFields, ApplicationOut, HiringOverview, InterviewOut, InterviewReview,
-    InterviewSchedule, ManagerOption, OpeningFields, OpeningOut,
+    ApplicationCreate, ApplicationFields, ApplicationOut, CandidateFields, CandidateLink, CandidateOut,
+    HiringOverview, InterviewOut, InterviewReview, InterviewSchedule, ManagerOption, OpeningFields, OpeningOut,
 )
 from app.services.hiring_mail import deliver_interview_mail, queue_interview_mail
 
@@ -51,13 +51,19 @@ def _opening_out(opening: HiringOpening) -> OpeningOut:
     )
 
 
-def _commit_application(db: Session) -> None:
+def _candidate_values(contact: CandidateFields) -> dict:
+    values = contact.model_dump(mode="json")
+    values["email"] = values["email"].lower()
+    return values
+
+
+def _commit_candidate_change(db: Session) -> None:
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
-            status_code=409, detail="This candidate is already in use. Refresh Hiring and check their application.",
+            status_code=409, detail="A candidate or application with these details already exists."
         ) from exc
 
 
@@ -74,7 +80,11 @@ def get_hiring(db: Database, response: Response):
     managers = db.scalars(select(User).where(
         User.is_active.is_(True), User.role.in_([Role.MANAGER.value, Role.HR.value]),
     ).order_by(User.email)).all()
+    talent_pool = db.scalars(select(HiringCandidate).where(
+        ~select(HiringApplication.id).where(HiringApplication.candidate_id == HiringCandidate.id).exists()
+    ).order_by(HiringCandidate.id.desc())).all()
     return HiringOverview(
+        talent_pool=[CandidateOut.model_validate(candidate) for candidate in talent_pool],
         openings=[_opening_out(opening) for opening in openings],
         applications=[ApplicationOut.model_validate(application) for application in applications],
         managers=[ManagerOption(id=user.id, role=user.role, name=user.name or user.email, email=user.email) for user in managers],
@@ -108,41 +118,69 @@ def update_opening(opening_id: int, payload: OpeningFields, db: Database):
     return _opening_out(opening)
 
 
-@router.post("/applications", status_code=201, response_model=ApplicationOut)
-def create_application(payload: ApplicationCreate, db: Database):
-    opening = _get_or_404(db, HiringOpening, payload.opening_id, lock=True)
+@router.post("/candidates", status_code=201, response_model=CandidateOut)
+def create_candidate(payload: CandidateFields, db: Database):
+    candidate = HiringCandidate(**_candidate_values(payload))
+    db.add(candidate)
+    _commit_candidate_change(db)
+    return candidate
+
+
+@router.put("/candidates/{candidate_id}", response_model=CandidateOut)
+def update_candidate(candidate_id: int, payload: CandidateFields, db: Database):
+    candidate = _get_or_404(db, HiringCandidate, candidate_id, lock=True)
+    for field, value in _candidate_values(payload).items():
+        setattr(candidate, field, value)
+    _commit_candidate_change(db)
+    return candidate
+
+
+def _opening_for_application(db: Session, opening_id: int) -> HiringOpening:
+    opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
     if opening.status == "Closed":
         raise HTTPException(status_code=409, detail="Reopen this opening before adding candidates.")
-    contact = payload.candidate.model_dump(mode="json")
-    contact["email"] = contact["email"].lower()
-    candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == contact["email"]))
-    if candidate is None:
-        candidate = HiringCandidate(**contact)
-        db.add(candidate)
-    elif db.scalar(select(HiringApplication.id).where(
+    return opening
+
+
+def _create_application(db: Session, opening: HiringOpening, candidate: HiringCandidate, **fields):
+    if candidate.id is not None and db.scalar(select(HiringApplication.id).where(
         HiringApplication.opening_id == opening.id, HiringApplication.candidate_id == candidate.id,
     )):
         raise HTTPException(status_code=409, detail="This candidate already has an application for this opening.")
 
-    application = HiringApplication(
-        **payload.model_dump(exclude={"candidate", "opening_id"}), opening_id=opening.id, candidate=candidate,
-    )
+    application = HiringApplication(opening_id=opening.id, candidate=candidate, **fields)
     db.add(application)
-    _commit_application(db)
+    _commit_candidate_change(db)
     return application
+
+
+@router.post("/candidates/{candidate_id}/applications", status_code=201, response_model=ApplicationOut)
+def link_candidate(candidate_id: int, payload: CandidateLink, db: Database):
+    opening = _opening_for_application(db, payload.opening_id)
+    candidate = _get_or_404(db, HiringCandidate, candidate_id, lock=True)
+    return _create_application(db, opening, candidate, stage="Applied")
+
+
+@router.post("/applications", status_code=201, response_model=ApplicationOut)
+def create_application(payload: ApplicationCreate, db: Database):
+    opening = _opening_for_application(db, payload.opening_id)
+    contact = _candidate_values(payload.candidate)
+    candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == contact["email"]))
+    if candidate is None:
+        candidate = HiringCandidate(**contact)
+        db.add(candidate)
+    return _create_application(db, opening, candidate, **payload.model_dump(exclude={"candidate", "opening_id"}))
 
 
 @router.put("/applications/{application_id}", response_model=ApplicationOut)
 def update_application(application_id: int, payload: ApplicationFields, db: Database):
     application = _get_or_404(db, HiringApplication, application_id, lock=True)
     candidate = _get_or_404(db, HiringCandidate, application.candidate_id, lock=True)
-    contact = payload.candidate.model_dump(mode="json")
-    contact["email"] = contact["email"].lower()
-    for field, value in contact.items():
+    for field, value in _candidate_values(payload.candidate).items():
         setattr(candidate, field, value)
     for field, value in payload.model_dump(exclude={"candidate"}).items():
         setattr(application, field, value)
-    _commit_application(db)
+    _commit_candidate_change(db)
     return application
 
 

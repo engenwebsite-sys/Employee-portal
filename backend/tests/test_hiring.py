@@ -124,3 +124,47 @@ def test_hr_hiring_workflow_and_internal_email(client, monkeypatch):
     assert client.put(url, headers=hr, json=second_round).status_code == 200
     assert notifications()[0]["status"] == "Sent"
     assert messages[-1]["To"] == emails["hr"]
+
+
+def test_talent_pool_saves_candidate_before_any_opening_and_links_same_profile(client):
+    from uuid import uuid4
+
+    make_user("talent-hr@nemilink.com", "hr")
+    make_user("talent-manager@nemilink.com", "manager")
+    hr = auth(login(client, "talent-hr@nemilink.com").json())
+    manager = auth(login(client, "talent-manager@nemilink.com").json())
+    api = "/api/v1/hiring"
+    initial = client.get(api, headers=hr).json()
+    assert initial["openings"] == []
+    manager_id = next(user["id"] for user in initial["managers"] if user["email"] == "talent-manager@nemilink.com")
+
+    contact = {
+        "name": "Talent Pool Candidate", "email": f"pool-{uuid4().hex}@example.com",
+        "phone": "555-0100", "resume_url": "https://onedrive.live.com/test-resume",
+    }
+    assert client.post(api + "/candidates", headers=manager, json=contact).status_code == 403
+    created = client.post(api + "/candidates", headers=hr, json=contact)
+    assert created.status_code == 201, created.text
+    candidate = created.json()
+    assert candidate in client.get(api, headers=hr).json()["talent_pool"]
+    assert client.post(api + "/candidates", headers=hr, json=contact).status_code == 409
+
+    candidate_url = api + f"/candidates/{candidate['id']}"
+    updated = client.put(candidate_url, headers=hr, json={**contact, "phone": "555-0200"})
+    assert updated.status_code == 200
+    assert updated.json()["phone"] == "555-0200"
+    opening = client.post(api + "/openings", headers=hr, json={
+        "title": "Backend Engineer", "division": "Nemilink", "vacancies": 1,
+        "manager_id": manager_id, "rounds": ["Technical"],
+    })
+    assert opening.status_code == 201, opening.text
+    link_url = candidate_url + "/applications"
+    link = {"opening_id": opening.json()["id"]}
+    assert client.post(link_url, headers=manager, json=link).status_code == 403
+    application = client.post(link_url, headers=hr, json=link)
+    assert application.status_code == 201, application.text
+    assert application.json()["stage"] == "Applied"
+    assert application.json()["candidate"] == {**contact, "phone": "555-0200"}
+    assert client.post(link_url, headers=hr, json=link).status_code == 409
+    pool = client.get(api, headers=hr).json()["talent_pool"]
+    assert all(record["id"] != candidate["id"] for record in pool)

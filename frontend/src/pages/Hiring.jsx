@@ -4,8 +4,8 @@ import { api } from "../lib/api";
 import { portalDate } from "../lib/portalDate";
 
 const stages = ["Applied", "Screening", "Interviewing", "Offer", "Joined", "Rejected", "Withdrawn"];
-const tabs = ["Overview", "Openings", "Candidates", "Interview Schedule"];
-const initialData = { openings: [], applications: [], managers: [] };
+const tabs = ["Overview", "Openings", "Candidates", "Talent Pool", "Interview Schedule"];
+const initialData = { openings: [], applications: [], talent_pool: [], managers: [] };
 const primary = "btn-brand-gradient rounded-lg px-4 py-2 text-xs font-bold text-white disabled:opacity-50";
 const secondary = "rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50";
 const panel = "card-pastel overflow-hidden p-4 sm:p-5";
@@ -88,17 +88,35 @@ function OpeningForm({ opening, managers }) {
   );
 }
 
-function CandidateForm({ application, openings }) {
+function OpeningSelect({ openings, required, ...props }) {
+  return <Field label={required ? "Opening" : "Opening (optional)"} name="opening_id" required={required} options={[
+    { value: "", text: required ? "Select an opening" : "Save to Talent Pool" },
+    ...openings.filter((opening) => opening.status !== "Closed").map((opening) => ({
+      value: opening.id, text: opening.title + " · " + opening.division,
+    })),
+  ]} {...props} />;
+}
+
+function CandidateForm({ application, poolCandidate, openings }) {
+  const [openingId, setOpeningId] = useState("");
+  const candidate = application?.candidate ?? poolCandidate;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {!application && <Field label="Opening" name="opening_id" required options={[
-        { value: "", text: "Select an opening" },
-        ...openings.filter((opening) => opening.status !== "Closed").map((opening) => ({ value: opening.id, text: opening.title + " · " + opening.division })),
-      ]} />}
-      <Field label="Candidate name" name="name" defaultValue={application?.candidate.name} required maxLength={150} />
-      <Field label="Email" name="email" defaultValue={application?.candidate.email} type="email" required maxLength={255} />
-      <Field label="Phone" name="phone" defaultValue={application?.candidate.phone || ""} type="tel" maxLength={40} />
-      <Field label="Résumé OneDrive link" name="resume_url" defaultValue={application?.candidate.resume_url || ""} type="url" />
+      {!candidate && openings.some((opening) => opening.status !== "Closed") && (
+        <OpeningSelect openings={openings} value={openingId} onChange={(event) => setOpeningId(event.target.value)} />
+      )}
+      <Field label="Candidate name" name="name" defaultValue={candidate?.name} required maxLength={150} />
+      <Field label="Email" name="email" defaultValue={candidate?.email} type="email" required maxLength={255} />
+      <Field label="Phone" name="phone" defaultValue={candidate?.phone || ""} type="tel" maxLength={40} />
+      <Field label="Résumé OneDrive link" name="resume_url" defaultValue={candidate?.resume_url || ""} type="url" />
+      {(application || openingId) && <ApplicationFields application={application} />}
+    </div>
+  );
+}
+
+function ApplicationFields({ application }) {
+  return (
+    <>
       <Field label="Stage" name="stage" defaultValue={application?.stage || "Applied"} options={stages} />
       <Field label="Source" name="source" defaultValue={application?.source || ""} maxLength={120} />
       <Field label="Experience" name="experience" defaultValue={application?.experience || ""} maxLength={120} />
@@ -110,7 +128,7 @@ function CandidateForm({ application, openings }) {
       <div className="sm:col-span-2">
         <Field label="HR notes" name="notes" defaultValue={application?.notes || ""} multiline maxLength={5000} />
       </div>
-    </div>
+    </>
   );
 }
 
@@ -218,15 +236,31 @@ export default function Hiring() {
         });
         setTab("Openings");
       } else if (dialog.type === "candidate") {
-        const result = await api(dialog.application ? "/hiring/applications/" + dialog.application.id : "/hiring/applications", {
-          method: dialog.application ? "PUT" : "POST",
-          body: {
-            ...(!dialog.application ? { opening_id: Number(read("opening_id")) } : {}),
-            candidate: { name: read("name"), email: read("email"), phone: optional("phone"), resume_url: optional("resume_url") },
-            stage: read("stage"), source: optional("source"), experience: optional("experience"),
-            notice_period: optional("notice_period"), expected_ctc: optional("expected_ctc"),
-            next_action: optional("next_action"), notes: optional("notes"),
-          },
+        const candidate = { name: read("name"), email: read("email"), phone: optional("phone"), resume_url: optional("resume_url") };
+        if (!dialog.application && !read("opening_id")) {
+          await api(dialog.poolCandidate ? "/hiring/candidates/" + dialog.poolCandidate.id : "/hiring/candidates", {
+            method: dialog.poolCandidate ? "PUT" : "POST",
+            body: candidate,
+          });
+          setTab("Talent Pool");
+        } else {
+          const result = await api(dialog.application ? "/hiring/applications/" + dialog.application.id : "/hiring/applications", {
+            method: dialog.application ? "PUT" : "POST",
+            body: {
+              ...(!dialog.application ? { opening_id: Number(read("opening_id")) } : {}),
+              candidate, stage: read("stage"), source: optional("source"), experience: optional("experience"),
+              notice_period: optional("notice_period"), expected_ctc: optional("expected_ctc"),
+              next_action: optional("next_action"), notes: optional("notes"),
+            },
+          });
+          setSearch("");
+          setSelectedId(result.id);
+          setTab("Candidates");
+        }
+      } else if (dialog.type === "link") {
+        const result = await api("/hiring/candidates/" + dialog.poolCandidate.id + "/applications", {
+          method: "POST",
+          body: { opening_id: Number(read("opening_id")) },
         });
         setSearch("");
         setSelectedId(result.id);
@@ -268,7 +302,8 @@ export default function Hiring() {
 
   const dialogTitle = dialog && {
     opening: dialog.opening ? "Edit opening" : "New opening",
-    candidate: dialog.application ? "Edit candidate application" : "Add candidate",
+    candidate: dialog.application ? "Edit candidate application" : dialog.poolCandidate ? "Edit candidate" : "Add candidate",
+    link: "Link candidate to opening",
     schedule: dialog.interview ? "Reschedule interview" : "Schedule interview",
     review: "Record interview outcome",
   }[dialog.type];
@@ -277,7 +312,7 @@ export default function Hiring() {
     <AppShell title="Hiring" subtitle="Manage openings, candidates, and interviews" actions={
       <div className="flex flex-wrap gap-2">
         <button type="button" className={secondary} onClick={() => load()} disabled={loading}>Refresh</button>
-        <button type="button" className={secondary} onClick={() => openDialog({ type: "candidate" })} disabled={!hasCandidateOpening}>+ Add Candidate</button>
+        <button type="button" className={secondary} onClick={() => openDialog({ type: "candidate" })} disabled={loading}>+ Add Candidate</button>
         <button type="button" className={primary} onClick={() => openDialog({ type: "opening" })} disabled={loading}>+ New Opening</button>
       </div>
     }>
@@ -352,6 +387,28 @@ export default function Hiring() {
               );
             })}
           </div>
+        ) : tab === "Talent Pool" ? (
+          <section className={panel}>
+            <h2 className="mb-3 font-semibold text-slate-900">Talent Pool</h2>
+            {data.talent_pool.length === 0 && <p className="text-sm text-slate-500">No candidates waiting for an opening.</p>}
+            <ul className="divide-y divide-slate-100">
+              {data.talent_pool.map((candidate) => (
+                <li key={candidate.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                  <div className="min-w-0 break-words text-sm">
+                    <div className="font-semibold">{candidate.name}</div>
+                    <div className="mt-1 text-xs text-slate-600">{candidate.email}{candidate.phone && " · " + candidate.phone}</div>
+                    {candidate.resume_url && <a className="mt-1 inline-block text-xs text-rose-700 underline" target="_blank" rel="noreferrer" href={candidate.resume_url}>Open résumé</a>}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className={secondary} onClick={() => openDialog({ type: "candidate", poolCandidate: candidate })}>Edit</button>
+                    {hasCandidateOpening ? (
+                      <button type="button" className={secondary} onClick={() => openDialog({ type: "link", poolCandidate: candidate })}>Link to Opening</button>
+                    ) : <span className="self-center text-xs text-slate-500">Waiting for an opening</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : tab === "Candidates" ? (
           <div className="space-y-4">
             <label className="sr-only" htmlFor="candidate-search">Search candidates</label>
@@ -471,7 +528,8 @@ export default function Hiring() {
             </div>
             <form onSubmit={submit} className="space-y-4">
               {dialog.type === "opening" && <OpeningForm opening={dialog.opening} managers={data.managers} />}
-              {dialog.type === "candidate" && <CandidateForm application={dialog.application} openings={data.openings} />}
+              {dialog.type === "candidate" && <CandidateForm application={dialog.application} poolCandidate={dialog.poolCandidate} openings={data.openings} />}
+              {dialog.type === "link" && <OpeningSelect openings={data.openings} required />}
               {dialog.type === "schedule" && <ScheduleForm opening={dialog.opening} interview={dialog.interview} round={dialog.round} />}
               {dialog.type === "review" && <ReviewForm interview={dialog.interview} />}
               {formError && <p role="alert" className="rounded-lg bg-rose-50 p-3 text-xs text-rose-800">{formError}</p>}
