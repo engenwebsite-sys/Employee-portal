@@ -1,10 +1,18 @@
 from datetime import date, datetime
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.user import User
+
+
+class HiringDomain(Base):
+    __tablename__ = "hiring_domains"
+
+    name: Mapped[str] = mapped_column(String(80), primary_key=True)
+
+    __table_args__ = (Index("uq_hiring_domains_name_ci", func.lower(name), unique=True),)
 
 
 class HiringOpening(Base):
@@ -13,6 +21,9 @@ class HiringOpening(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(String(150))
     division: Mapped[str] = mapped_column(String(80))
+    domain: Mapped[str | None] = mapped_column(String(80))
+    experience_required: Mapped[str | None] = mapped_column(String(120))
+    closing_date: Mapped[date | None]
     vacancies: Mapped[int]
     status: Mapped[str] = mapped_column(String(20))
     target_joining_date: Mapped[date | None]
@@ -28,10 +39,11 @@ class HiringCandidate(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(150))
-    email: Mapped[str] = mapped_column(String(255), unique=True)
+    email: Mapped[str | None] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(40))
     resume_url: Mapped[str | None] = mapped_column(Text)
     profile: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    intake: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
 
 
 class HiringApplication(Base):
@@ -44,6 +56,10 @@ class HiringApplication(Base):
     stage: Mapped[str] = mapped_column(String(20))
     source: Mapped[str | None] = mapped_column(String(120))
     experience: Mapped[str | None] = mapped_column(String(120))
+    referred_by: Mapped[str | None] = mapped_column(String(150))
+    applied_on: Mapped[date | None]
+    decision: Mapped[str | None] = mapped_column(String(30))
+    decision_on: Mapped[date | None]
     notice_period: Mapped[str | None] = mapped_column(String(80))
     expected_ctc: Mapped[str | None] = mapped_column(String(80))
     next_action: Mapped[str | None] = mapped_column(String(250))

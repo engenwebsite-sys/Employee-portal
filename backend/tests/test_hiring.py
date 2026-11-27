@@ -217,3 +217,122 @@ def test_hr_can_delete_unlinked_talent_pool_candidate(client):
     assert all(record["id"] != candidate_id for record in pool)
     assert client.delete(candidate_url, headers=hr).status_code == 404
     assert client.post(api + "/candidates", headers=hr, json=contact).status_code == 201
+
+
+def test_manual_hiring_tracker_and_opening_deadline(client, monkeypatch):
+    from datetime import date
+
+    from app.api.v1 import hiring
+
+    today = date(2026, 11, 26)
+    monkeypatch.setattr(hiring, "portal_today", lambda: today)
+    make_user("tracker-hr@nemilink.com", "hr")
+    make_user("tracker-manager@nemilink.com", "manager")
+    hr = auth(login(client, "tracker-hr@nemilink.com").json())
+    manager = auth(login(client, "tracker-manager@nemilink.com").json())
+    api = "/api/v1/hiring"
+    opening_payload = {
+        "title": "Example Designer", "division": "Example Company", "domain": "Design",
+        "experience_required": "3+ years", "closing_date": today.isoformat(),
+    }
+
+    assert client.get(api, headers=hr).json()["openings"] == []
+    assert client.post(api + "/openings", headers=manager, json=opening_payload).status_code == 403
+    assert client.post(api + "/openings", headers=hr, json={
+        **opening_payload, "closing_date": "2026-11-25",
+    }).status_code == 422
+    created = client.post(api + "/openings", headers=hr, json=opening_payload)
+    assert created.status_code == 201, created.text
+    opening = created.json()
+    assert opening["status"] == "Open"
+    assert all(opening[key] == value for key, value in opening_payload.items())
+    assert opening["rounds"] == []
+    opening_id = opening["id"]
+
+    unused = client.post(api + "/openings", headers=hr, json={**opening_payload, "title": "Unused Opening"})
+    assert unused.status_code == 201, unused.text
+    unused_url = api + f"/openings/{unused.json()['id']}"
+    assert client.delete(unused_url, headers=manager).status_code == 403
+    assert client.delete(unused_url, headers=hr).status_code == 204
+    assert client.delete(unused_url, headers=hr).status_code == 404
+    assert [record["id"] for record in client.get(api, headers=hr).json()["openings"]] == [opening_id]
+
+    tracking = {
+        "source": "Referral", "referred_by": "Employee Referral", "experience": "4 years",
+        "applied_on": today.isoformat(), "notes": "Portfolio received.",
+    }
+    pool_payload = {"name": "Manual Candidate", "intake": {"role": "Designer", **tracking}}
+    assert client.post(api + "/candidates", headers=manager, json=pool_payload).status_code == 403
+    pool_created = client.post(api + "/candidates", headers=hr, json=pool_payload)
+    assert pool_created.status_code == 201, pool_created.text
+    candidate = pool_created.json()
+    assert candidate["email"] is None
+    assert candidate["intake"] == pool_payload["intake"]
+
+    link_url = api + f"/candidates/{candidate['id']}/applications"
+    linked = client.post(link_url, headers=hr, json={"opening_id": opening_id})
+    assert linked.status_code == 201, linked.text
+    application = linked.json()
+    assert all(application[key] == value for key, value in tracking.items())
+    assert application["candidate"]["name"] == "Manual Candidate"
+    assert client.delete(api + f"/openings/{opening_id}", headers=hr).status_code == 409
+
+    application_url = api + f"/applications/{application['id']}"
+    decision = {"candidate": {"name": "Manual Candidate"}, "stage": "Tests", "decision": "In Process"}
+    assert client.put(application_url, headers=hr, json={
+        **decision, "decision_on": "2026-11-25",
+    }).status_code == 422
+    updated = client.put(application_url, headers=hr, json={**decision, "decision_on": today.isoformat()})
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["stage"] == "Tests"
+    assert updated.json()["decision"] == "In Process"
+    assert updated.json()["decision_on"] == today.isoformat()
+    assert updated.json()["referred_by"] == tracking["referred_by"]
+
+    new_application = {
+        "opening_id": opening_id, "candidate": {"name": "Manual Candidate"}, "source": "LinkedIn",
+    }
+    assert client.post(api + "/applications", headers=hr, json=new_application).status_code == 201
+    monkeypatch.setattr(hiring, "portal_today", lambda: date(2026, 11, 27))
+    overview = client.get(api, headers=hr).json()
+    assert overview["openings"][0]["status"] == "Closed"
+    assert len(overview["applications"]) == 2
+    assert client.post(api + "/applications", headers=hr, json=new_application).status_code == 409
+    assert client.post(link_url, headers=hr, json={"opening_id": opening_id}).status_code == 409
+
+    opening_url = api + f"/openings/{opening_id}"
+    edited = client.put(opening_url, headers=hr, json={**opening_payload, "closing_date": "2026-11-30"})
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["status"] == "Open"
+    assert client.post(opening_url + "/close", headers=manager).status_code == 403
+    for _ in range(2):
+        closed = client.post(opening_url + "/close", headers=hr)
+        assert closed.status_code == 200
+        assert closed.json()["status"] == "Closed"
+    assert client.post(api + "/applications", headers=hr, json=new_application).status_code == 409
+    assert client.put(application_url, headers=hr, json={**decision, "stage": "Offer"}).status_code == 200
+
+
+def test_hr_can_add_reusable_hiring_domains(client):
+    make_user("domains-hr@nemilink.com", "hr")
+    make_user("domains-manager@nemilink.com", "manager")
+    hr = auth(login(client, "domains-hr@nemilink.com").json())
+    manager = auth(login(client, "domains-manager@nemilink.com").json())
+    api = "/api/v1/hiring"
+
+    overview = client.get(api, headers=hr).json()
+    assert {"SAP", "UI/UX Design", "DevOps / SRE"} <= set(overview["domains"])
+    assert overview["openings"] == []
+    assert client.post(api + "/domains", headers=manager, json={"name": "Embedded Systems"}).status_code == 403
+    assert client.post(api + "/domains", headers=hr, json={"name": "  "}).status_code == 422
+
+    added = client.post(api + "/domains", headers=hr, json={"name": "  Embedded Systems  "})
+    assert added.status_code == 200, added.text
+    assert added.json() == {"name": "Embedded Systems"}
+    repeated = client.post(api + "/domains", headers=hr, json={"name": "embedded systems"})
+    assert repeated.json() == added.json()
+
+    overview = client.get(api, headers=hr).json()
+    assert overview["domains"].count("Embedded Systems") == 1
+    assert "embedded systems" not in overview["domains"]
+    assert overview["openings"] == []

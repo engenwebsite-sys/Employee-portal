@@ -1,18 +1,21 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import require_roles
+from app.core.portal_date import portal_today
 from app.db.session import get_db
 from app.models import Role, User
-from app.models.hiring import HiringApplication, HiringCandidate, HiringInterview, HiringNotification, HiringOpening
+from app.models.hiring import HiringApplication, HiringCandidate, HiringDomain, HiringInterview, HiringNotification, HiringOpening
 from app.schemas.hiring import (
-    ApplicationCreate, ApplicationFields, ApplicationOut, CandidateFields, CandidateLink, CandidateOut,
-    HiringOverview, InterviewOut, InterviewReview, InterviewSchedule, ManagerOption, OpeningFields, OpeningOut,
+    ApplicationCreate, ApplicationFields, ApplicationOut, CandidateFields, CandidateIntake, CandidateIntakeFields,
+    CandidateLink, CandidateOut, DomainFields, HiringOverview, InterviewOut, InterviewReview, InterviewSchedule, ManagerOption,
+    OpeningFields, OpeningOut, OpeningStatus, OpeningTrackerFields,
 )
 from app.services.hiring_mail import deliver_interview_mail, queue_interview_mail
 
@@ -42,20 +45,36 @@ def _hr_owner(db: Session, user_id: int) -> User:
     return user
 
 
+def _register_domain(db: Session, name: str) -> str:
+    db.execute(insert(HiringDomain).values(name=name).on_conflict_do_nothing())
+    return db.execute(select(HiringDomain.name).where(func.lower(HiringDomain.name) == func.lower(name))).scalar_one()
+
+
+def _opening_status(opening: HiringOpening) -> OpeningStatus:
+    if opening.closing_date and opening.closing_date < portal_today():
+        return "Closed"
+    return opening.status
+
+
+def _validate_closing_date(closing_date: date) -> None:
+    if closing_date < portal_today():
+        raise HTTPException(status_code=422, detail="Choose a closing date of today or later.")
+
+
 def _opening_out(opening: HiringOpening) -> OpeningOut:
     return OpeningOut(
         id=opening.id, title=opening.title, division=opening.division, vacancies=opening.vacancies,
-        status=opening.status, target_joining_date=opening.target_joining_date, rounds=opening.rounds,
+        domain=opening.domain, experience_required=opening.experience_required, closing_date=opening.closing_date,
+        status=_opening_status(opening), target_joining_date=opening.target_joining_date, rounds=opening.rounds,
         manager_id=opening.manager_id, hr_owner_id=opening.hr_owner_id,
         manager_email=opening.manager.email, hr_owner_email=opening.hr_owner.email,
     )
 
 
 def _candidate_values(contact: CandidateFields) -> dict:
-    values = contact.model_dump(mode="json")
-    values["email"] = values["email"].lower()
-    if "profile" not in contact.model_fields_set:
-        values.pop("profile")
+    values = contact.model_dump(mode="json", exclude_unset=True)
+    if values.get("email"):
+        values["email"] = values["email"].lower()
     return values
 
 
@@ -86,6 +105,7 @@ def get_hiring(db: Database, response: Response):
         ~select(HiringApplication.id).where(HiringApplication.candidate_id == HiringCandidate.id).exists()
     ).order_by(HiringCandidate.id.desc())).all()
     return HiringOverview(
+        domains=db.scalars(select(HiringDomain.name).order_by(func.lower(HiringDomain.name))).all(),
         talent_pool=[CandidateOut.model_validate(candidate) for candidate in talent_pool],
         openings=[_opening_out(opening) for opening in openings],
         applications=[ApplicationOut.model_validate(application) for application in applications],
@@ -93,19 +113,42 @@ def get_hiring(db: Database, response: Response):
     )
 
 
+@router.post("/domains", response_model=DomainFields)
+def add_domain(payload: DomainFields, db: Database):
+    name = _register_domain(db, payload.name)
+    db.commit()
+    return DomainFields(name=name)
+
+
 @router.post("/openings", status_code=201, response_model=OpeningOut)
-def create_opening(payload: OpeningFields, db: Database, hr: HRUser):
-    _manager(db, payload.manager_id)
-    owner = _hr_owner(db, payload.hr_owner_id or hr.id)
-    opening = HiringOpening(**payload.model_dump(exclude={"hr_owner_id"}), hr_owner_id=owner.id)
+def create_opening(payload: OpeningFields | OpeningTrackerFields, db: Database, hr: HRUser):
+    if isinstance(payload, OpeningTrackerFields):
+        _validate_closing_date(payload.closing_date)
+        details = payload.model_dump()
+        details["domain"] = _register_domain(db, payload.domain)
+        opening = HiringOpening(**details, vacancies=1, status="Open", rounds=[], manager_id=hr.id, hr_owner_id=hr.id)
+    else:
+        _manager(db, payload.manager_id)
+        owner = _hr_owner(db, payload.hr_owner_id or hr.id)
+        opening = HiringOpening(**payload.model_dump(exclude={"hr_owner_id"}), hr_owner_id=owner.id)
     db.add(opening)
     db.commit()
     return _opening_out(opening)
 
 
 @router.put("/openings/{opening_id}", response_model=OpeningOut)
-def update_opening(opening_id: int, payload: OpeningFields, db: Database):
+def update_opening(opening_id: int, payload: OpeningFields | OpeningTrackerFields, db: Database):
     opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
+    if isinstance(payload, OpeningTrackerFields):
+        if payload.closing_date != opening.closing_date:
+            _validate_closing_date(payload.closing_date)
+        details = payload.model_dump()
+        details["domain"] = _register_domain(db, payload.domain)
+        for field, value in details.items():
+            setattr(opening, field, value)
+        db.commit()
+        return _opening_out(opening)
+
     _manager(db, payload.manager_id)
     used_rounds = set(db.scalars(
         select(HiringInterview.round_name).join(HiringApplication).where(HiringApplication.opening_id == opening.id)
@@ -120,8 +163,26 @@ def update_opening(opening_id: int, payload: OpeningFields, db: Database):
     return _opening_out(opening)
 
 
+@router.post("/openings/{opening_id}/close", response_model=OpeningOut)
+def close_opening(opening_id: int, db: Database):
+    opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
+    opening.status = "Closed"
+    db.commit()
+    return _opening_out(opening)
+
+
+@router.delete("/openings/{opening_id}", status_code=204)
+def delete_opening(opening_id: int, db: Database):
+    opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
+    has_application = select(HiringApplication.id).where(HiringApplication.opening_id == opening.id).exists()
+    if db.scalar(select(has_application)):
+        raise HTTPException(status_code=409, detail="Close this opening to keep its application history.")
+    db.delete(opening)
+    db.commit()
+
+
 @router.post("/candidates", status_code=201, response_model=CandidateOut)
-def create_candidate(payload: CandidateFields, db: Database):
+def create_candidate(payload: CandidateIntakeFields, db: Database):
     candidate = HiringCandidate(**_candidate_values(payload))
     db.add(candidate)
     _commit_candidate_change(db)
@@ -129,7 +190,7 @@ def create_candidate(payload: CandidateFields, db: Database):
 
 
 @router.put("/candidates/{candidate_id}", response_model=CandidateOut)
-def update_candidate(candidate_id: int, payload: CandidateFields, db: Database):
+def update_candidate(candidate_id: int, payload: CandidateIntakeFields, db: Database):
     candidate = _get_or_404(db, HiringCandidate, candidate_id, lock=True)
     for field, value in _candidate_values(payload).items():
         setattr(candidate, field, value)
@@ -149,9 +210,14 @@ def delete_candidate(candidate_id: int, db: Database):
 
 def _opening_for_application(db: Session, opening_id: int) -> HiringOpening:
     opening = _get_or_404(db, HiringOpening, opening_id, lock=True)
-    if opening.status == "Closed":
-        raise HTTPException(status_code=409, detail="Reopen this opening before adding candidates.")
+    if _opening_status(opening) == "Closed":
+        raise HTTPException(status_code=409, detail="This opening is closed. Choose an open job.")
     return opening
+
+
+def _validate_decision_date(applied_on: date | None, decision_on: date | None) -> None:
+    if applied_on and decision_on and decision_on < applied_on:
+        raise HTTPException(status_code=422, detail="Decision date cannot be before the applied date.")
 
 
 def _create_application(db: Session, opening: HiringOpening, candidate: HiringCandidate, **fields):
@@ -170,14 +236,18 @@ def _create_application(db: Session, opening: HiringOpening, candidate: HiringCa
 def link_candidate(candidate_id: int, payload: CandidateLink, db: Database):
     opening = _opening_for_application(db, payload.opening_id)
     candidate = _get_or_404(db, HiringCandidate, candidate_id, lock=True)
-    return _create_application(db, opening, candidate, stage="Applied")
+    tracking = CandidateIntake.model_validate(candidate.intake).model_dump(exclude={"role"}) if candidate.intake else {}
+    return _create_application(db, opening, candidate, stage="Applied", **tracking)
 
 
 @router.post("/applications", status_code=201, response_model=ApplicationOut)
 def create_application(payload: ApplicationCreate, db: Database):
     opening = _opening_for_application(db, payload.opening_id)
     contact = _candidate_values(payload.candidate)
-    candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == contact["email"]).with_for_update())
+    _validate_decision_date(payload.applied_on, payload.decision_on)
+    candidate = None
+    if email := contact.get("email"):
+        candidate = db.scalar(select(HiringCandidate).where(HiringCandidate.email == email).with_for_update())
     if candidate is None:
         candidate = HiringCandidate(**contact)
         db.add(candidate)
@@ -192,7 +262,9 @@ def update_application(application_id: int, payload: ApplicationFields, db: Data
     candidate = _get_or_404(db, HiringCandidate, application.candidate_id, lock=True)
     for field, value in _candidate_values(payload.candidate).items():
         setattr(candidate, field, value)
-    for field, value in payload.model_dump(exclude={"candidate"}).items():
+    changes = payload.model_dump(exclude={"candidate"}, exclude_unset=True)
+    _validate_decision_date(changes.get("applied_on", application.applied_on), changes.get("decision_on", application.decision_on))
+    for field, value in changes.items():
         setattr(application, field, value)
     _commit_candidate_change(db)
     return application
@@ -215,7 +287,7 @@ def schedule_interview(application_id: int, payload: InterviewSchedule, db: Data
     application = _get_or_404(db, HiringApplication, application_id, lock=True)
     opening = _get_or_404(db, HiringOpening, application.opening_id, lock=True)
     _manager(db, opening.manager_id)
-    if opening.status == "Closed" or application.stage in ("Joined", "Rejected", "Withdrawn"):
+    if _opening_status(opening) == "Closed" or application.stage in ("Joined", "Not Shortlisted", "Rejected", "Withdrawn"):
         raise HTTPException(status_code=409, detail="Only active applications can be scheduled.")
     if payload.round_name not in opening.rounds:
         raise HTTPException(status_code=422, detail="Choose a round configured for this opening.")

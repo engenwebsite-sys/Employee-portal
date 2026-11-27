@@ -5,4 +5,4 @@ from app.models.employee import Department, Employee  # noqa: F401
 from app.models.leave import LeaveAdjustment, LeaveRequest, LeaveStatus, LeaveType  # noqa: F401
 from app.models.timesheet import TimesheetEntry  # noqa: F401
 from app.models.project import Project  # noqa: F401
-from app.models.hiring import HiringApplication, HiringCandidate, HiringInterview, HiringNotification, HiringOpening  # noqa: F401
+from app.models.hiring import HiringApplication, HiringCandidate, HiringDomain, HiringInterview, HiringNotification, HiringOpening  # noqa: F401

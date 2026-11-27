@@ -5,7 +5,10 @@ from typing import Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator, model_validator
 
 OpeningStatus = Literal["Open", "On Hold", "Closed"]
-ApplicationStage = Literal["Applied", "Screening", "Interviewing", "Offer", "Joined", "Rejected", "Withdrawn"]
+ApplicationStage = Literal[
+    "Applied", "Screening", "Tests", "Interviewing", "Offer", "Joined", "Not Shortlisted", "Rejected", "Withdrawn"
+]
+ApplicationDecision = Literal["In Process", "Hired", "Not Hired", "Candidate Refusal"]
 Attendance = Literal["Scheduled", "Attended", "No Show", "Cancelled"]
 InterviewResult = Literal["Pending", "Passed", "Failed", "On Hold"]
 
@@ -21,9 +24,22 @@ class HiringPayload(BaseModel):
         return value
 
 
-class OpeningFields(HiringPayload):
+class DomainFields(HiringPayload):
+    name: str = Field(min_length=1, max_length=80)
+
+
+class OpeningIdentity(HiringPayload):
     title: str = Field(min_length=2, max_length=150)
     division: str = Field(min_length=1, max_length=80)
+
+
+class OpeningTrackerFields(OpeningIdentity):
+    domain: str = Field(min_length=1, max_length=80)
+    experience_required: str = Field(min_length=1, max_length=120)
+    closing_date: date
+
+
+class OpeningFields(OpeningIdentity):
     vacancies: int = Field(ge=1, le=500)
     status: OpeningStatus = "Open"
     target_joining_date: date | None = None
@@ -84,13 +100,29 @@ class CandidateProfile(HiringPayload):
 
 class CandidateFields(HiringPayload):
     name: str = Field(min_length=1, max_length=150)
-    email: EmailStr = Field(max_length=255)
+    email: EmailStr | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, max_length=40)
     resume_url: HttpUrl | None = None
     profile: CandidateProfile | None = None
 
 
-class CandidateOut(CandidateFields):
+class ApplicationTracking(HiringPayload):
+    source: str | None = Field(default=None, max_length=120)
+    experience: str | None = Field(default=None, max_length=120)
+    referred_by: str | None = Field(default=None, max_length=150)
+    applied_on: date | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+
+
+class CandidateIntake(ApplicationTracking):
+    role: str = Field(min_length=1, max_length=150)
+
+
+class CandidateIntakeFields(CandidateFields):
+    intake: CandidateIntake | None = None
+
+
+class CandidateOut(CandidateIntakeFields):
     id: int
 
 
@@ -98,15 +130,14 @@ class CandidateLink(HiringPayload):
     opening_id: int = Field(gt=0)
 
 
-class ApplicationFields(HiringPayload):
+class ApplicationFields(ApplicationTracking):
     candidate: CandidateFields
     stage: ApplicationStage = "Applied"
-    source: str | None = Field(default=None, max_length=120)
-    experience: str | None = Field(default=None, max_length=120)
+    decision: ApplicationDecision | None = None
+    decision_on: date | None = None
     notice_period: str | None = Field(default=None, max_length=80)
     expected_ctc: str | None = Field(default=None, max_length=80)
     next_action: str | None = Field(default=None, max_length=250)
-    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ApplicationCreate(ApplicationFields):
@@ -163,6 +194,10 @@ class InterviewOut(BaseModel):
 
 class OpeningOut(OpeningFields):
     id: int
+    domain: str | None
+    experience_required: str | None
+    closing_date: date | None
+    rounds: list[str]
     hr_owner_email: str
     manager_email: str
 
@@ -175,6 +210,10 @@ class ApplicationOut(BaseModel):
     stage: ApplicationStage
     source: str | None
     experience: str | None
+    referred_by: str | None
+    applied_on: date | None
+    decision: ApplicationDecision | None
+    decision_on: date | None
     notice_period: str | None
     expected_ctc: str | None
     next_action: str | None
@@ -190,6 +229,7 @@ class ManagerOption(BaseModel):
 
 
 class HiringOverview(BaseModel):
+    domains: list[str]
     openings: list[OpeningOut]
     talent_pool: list[CandidateOut]
     applications: list[ApplicationOut]
